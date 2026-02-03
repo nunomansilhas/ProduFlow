@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="30">
+    <title>ProduFlow - Estação</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --display-bg: #0a0a0a;
+            --display-card: #1a1a1a;
+            --display-border: #333;
+            --display-text: #fff;
+            --display-muted: #888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--display-bg);
+            color: var(--display-text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header da estação */
+        .station-header {
+            background: linear-gradient(135deg, var(--station-color, #0d6efd) 0%, rgba(13,110,253,0.7) 100%);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .station-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .station-name i {
+            font-size: 2rem;
+        }
+
+        .station-time {
+            font-size: 2rem;
+            font-weight: 300;
+            text-align: right;
+        }
+
+        .station-date {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        /* Área principal */
+        .display-main {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            height: calc(100vh - 100px);
+        }
+
+        /* Card de ordem atual */
+        .current-order {
+            background: var(--display-card);
+            border-radius: 1rem;
+            padding: 2rem;
+            border: 3px solid var(--station-color, #0d6efd);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .current-order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--display-border);
+        }
+
+        .order-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--station-color, #0d6efd);
+        }
+
+        .order-priority {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-1 { background: #198754; }
+        .priority-2 { background: #ffc107; color: #000; }
+        .priority-3 { background: #fd7e14; }
+        .priority-4 { background: #dc3545; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .order-product {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .order-sku {
+            font-size: 1.25rem;
+            color: var(--display-muted);
+            font-family: monospace;
+        }
+
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: auto;
+        }
+
+        .detail-box {
+            background: rgba(255,255,255,0.05);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            text-align: center;
+        }
+
+        .detail-label {
+            font-size: 1rem;
+            color: var(--display-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .detail-value.deadline {
+            color: #ffc107;
+        }
+
+        .detail-value.deadline.late {
+            color: #dc3545;
+        }
+
+        /* Instruções */
+        .order-instructions {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(13, 110, 253, 0.1);
+            border-radius: 0.75rem;
+            border-left: 4px solid var(--station-color, #0d6efd);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: var(--display-muted);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions-text {
+            font-size: 1.5rem;
+        }
+
+        /* Fila de espera */
+        .queue-panel {
+            background: var(--display-card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .queue-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--display-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .queue-count {
+            background: var(--station-color, #0d6efd);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 1rem;
+        }
+
+        .queue-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            background: rgba(255,255,255,0.03);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid;
+        }
+
+        .queue-item.priority-1 { border-left-color: #198754; }
+        .queue-item.priority-2 { border-left-color: #ffc107; }
+        .queue-item.priority-3 { border-left-color: #fd7e14; }
+        .queue-item.priority-4 { border-left-color: #dc3545; }
+
+        .queue-item-number {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .queue-item-product {
+            color: var(--display-muted);
+            font-size: 0.9rem;
+        }
+
+        .queue-item-qty {
+            float: right;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* Estado vazio */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--display-muted);
+        }
+
+        .empty-state i {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.3;
+        }
+
+        .empty-state h2 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            font-size: 1.25rem;
+        }
+
+        /* Status bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--display-card);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--display-border);
+            font-size: 0.9rem;
+            color: var(--display-muted);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #198754;
+            display: inline-block;
+            margin-right: 0.5rem;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Loader */
+        .loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .loader-spinner {
+            width: 4rem;
+            height: 4rem;
+            border: 4px solid var(--display-border);
+            border-top-color: var(--station-color, #0d6efd);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loader">
+            <div class="loader-spinner"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração
+        const estacaoId = window.location.pathname.split('/').pop();
+        const API_BASE = '/api';
+        const REFRESH_INTERVAL = 10000; // 10 segundos
+
+        // Estado
+        let estacao = null;
+        let ordens = [];
+
+        // Prioridades
+        const PRIORIDADES = {
+            1: 'Baixa',
+            2: 'Normal',
+            3: 'Alta',
+            4: 'Urgente'
+        };
+
+        // Inicializar
+        async function init() {
+            await carregarEstacao();
+            await carregarOrdens();
+            renderizar();
+
+            // Atualizar a cada 10 segundos
+            setInterval(async () => {
+                await carregarOrdens();
+                renderizar();
+            }, REFRESH_INTERVAL);
+
+            // Atualizar relógio a cada segundo
+            setInterval(atualizarRelogio, 1000);
+        }
+
+        // Carregar dados da estação
+        async function carregarEstacao() {
+            try {
+                const response = await fetch(`${API_BASE}/estacoes/${estacaoId}`);
+                if (!response.ok) throw new Error('Estação não encontrada');
+                estacao = await response.json();
+                document.documentElement.style.setProperty('--station-color', estacao.cor || '#0d6efd');
+            } catch (error) {
+                console.error('Erro ao carregar estação:', error);
+                estacao = { nome: 'Estação Desconhecida', cor: '#dc3545', icone: 'fa-exclamation-triangle' };
+            }
+        }
+
+        // Carregar ordens na estação
+        async function carregarOrdens() {
+            try {
+                const response = await fetch(`${API_BASE}/estacoes/${estacaoId}/ordens`);
+                if (!response.ok) throw new Error('Erro ao carregar ordens');
+                ordens = await response.json();
+            } catch (error) {
+                console.error('Erro ao carregar ordens:', error);
+                ordens = [];
+            }
+        }
+
+        // Atualizar relógio
+        function atualizarRelogio() {
+            const timeEl = document.getElementById('current-time');
+            const dateEl = document.getElementById('current-date');
+            if (timeEl && dateEl) {
+                const now = new Date();
+                timeEl.textContent = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+                dateEl.textContent = now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+            }
+        }
+
+        // Calcular dias para entrega
+        function diasParaEntrega(dataStr) {
+            if (!dataStr) return null;
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const data = new Date(dataStr);
+            data.setHours(0, 0, 0, 0);
+            return Math.ceil((data - hoje) / (1000 * 60 * 60 * 24));
+        }
+
+        // Formatar data
+        function formatarData(dataStr) {
+            if (!dataStr) return '-';
+            return new Date(dataStr).toLocaleDateString('pt-PT');
+        }
+
+        // Renderizar interface
+        function renderizar() {
+            const app = document.getElementById('app');
+            const ordemAtual = ordens.find(o => o.estado_estacao === 'em_progresso') || ordens[0];
+            const filaEspera = ordens.filter(o => o !== ordemAtual);
+
+            app.innerHTML = `
+                <!-- Header -->
+                <header class="station-header">
+                    <div class="station-name">
+                        <i class="fas ${estacao.icone || 'fa-cog'}"></i>
+                        ${estacao.nome}
+                    </div>
+                    <div class="station-time">
+                        <div id="current-time">${new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div class="station-date" id="current-date">${new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                    </div>
+                </header>
+
+                <!-- Conteúdo Principal -->
+                <main class="display-main">
+                    ${ordemAtual ? renderizarOrdemAtual(ordemAtual) : renderizarVazio()}
+                    ${renderizarFila(filaEspera)}
+                </main>
+
+                <!-- Status Bar -->
+                <div class="status-bar">
+                    <div>
+                        <span class="status-dot"></span>
+                        Atualizado às ${new Date().toLocaleTimeString('pt-PT')}
+                    </div>
+                    <div>
+                        ProduFlow - Mansilhas & Cia
+                    </div>
+                </div>
+            `;
+        }
+
+        // Renderizar ordem atual
+        function renderizarOrdemAtual(ordem) {
+            const dias = diasParaEntrega(ordem.data_prevista);
+            const atrasada = dias !== null && dias < 0;
+
+            return `
+                <div class="current-order">
+                    <div class="current-order-header">
+                        <div>
+                            <div class="order-number">${ordem.numero}</div>
+                            <div class="order-product">${ordem.produto_nome}</div>
+                            <div class="order-sku">${ordem.produto_sku || ''}</div>
+                        </div>
+                        <div class="order-priority priority-${ordem.prioridade}">
+                            ${PRIORIDADES[ordem.prioridade]}
+                        </div>
+                    </div>
+
+                    <div class="order-details">
+                        <div class="detail-box">
+                            <div class="detail-label">Quantidade</div>
+                            <div class="detail-value">${ordem.quantidade}</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="detail-label">Cliente</div>
+                            <div class="detail-value" style="font-size: 1.5rem;">${ordem.cliente || '-'}</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="detail-label">Entrega</div>
+                            <div class="detail-value deadline ${atrasada ? 'late' : ''}">
+                                ${ordem.data_prevista ? formatarData(ordem.data_prevista) : '-'}
+                                ${atrasada ? '<i class="fas fa-exclamation-triangle ms-2"></i>' : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    ${ordem.notas ? `
+                        <div class="order-instructions">
+                            <div class="instructions-title"><i class="fas fa-clipboard-list me-2"></i>Instruções</div>
+                            <div class="instructions-text">${ordem.notas}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Renderizar estado vazio
+        function renderizarVazio() {
+            return `
+                <div class="current-order">
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <h2>Sem ordens pendentes</h2>
+                        <p>Não existem ordens de produção para esta estação.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Renderizar fila de espera
+        function renderizarFila(fila) {
+            return `
+                <div class="queue-panel">
+                    <div class="queue-title">
+                        <i class="fas fa-list-ol"></i>
+                        Fila de Espera
+                        <span class="queue-count">${fila.length}</span>
+                    </div>
+                    <div class="queue-list">
+                        ${fila.length === 0 ? `
+                            <div class="empty-state" style="padding: 2rem;">
+                                <i class="fas fa-inbox" style="font-size: 2rem;"></i>
+                                <p style="font-size: 1rem; margin-top: 1rem;">Fila vazia</p>
+                            </div>
+                        ` : fila.map(o => `
+                            <div class="queue-item priority-${o.prioridade}">
+                                <span class="queue-item-qty">${o.quantidade}</span>
+                                <div class="queue-item-number">${o.numero}</div>
+                                <div class="queue-item-product">${o.produto_nome}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Iniciar
+        init();
+    </script>
+</body>
+</html>

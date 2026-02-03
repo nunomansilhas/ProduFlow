@@ -28,6 +28,20 @@ router.get('/', (req, res) => {
 });
 
 // ============================================
+// ECRÃ RASPBERRY PI (público - sem autenticação)
+// ============================================
+
+// Display da estação para Raspberry Pi
+router.get('/display/:id', (req, res) => {
+    res.sendFile(path.join(viewsDir, 'display', 'estacao.html'));
+});
+
+// Lista de displays disponíveis
+router.get('/display', (req, res) => {
+    res.sendFile(path.join(viewsDir, 'display', 'index.html'));
+});
+
+// ============================================
 // ROTAS PROTEGIDAS (requerem autenticação)
 // ============================================
 

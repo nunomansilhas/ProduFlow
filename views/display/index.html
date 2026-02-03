@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProduFlow - Selecionar Ecrã</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --display-bg: #0a0a0a;
+            --display-card: #1a1a1a;
+            --display-border: #333;
+        }
+
+        body {
+            background-color: var(--display-bg);
+            color: #fff;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .page-header {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .logo {
+            font-size: 4rem;
+            color: #0d6efd;
+            margin-bottom: 1rem;
+        }
+
+        .stations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            padding: 0 2rem 3rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .station-card {
+            background: var(--display-card);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            text-decoration: none;
+            color: #fff;
+            display: block;
+        }
+
+        .station-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--station-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .station-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2rem;
+        }
+
+        .station-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .station-orders {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .station-orders .count {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .station-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .station-badge.has-orders {
+            background: rgba(13, 110, 253, 0.2);
+            color: #0d6efd;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: #0d6efd;
+            text-decoration: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem;
+            color: #888;
+        }
+
+        .loading i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Instruções */
+        .instructions {
+            background: var(--display-card);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 0 2rem 2rem;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .instructions h5 {
+            color: #0d6efd;
+            margin-bottom: 1rem;
+        }
+
+        .instructions ol {
+            color: #aaa;
+            padding-left: 1.5rem;
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions code {
+            background: rgba(255,255,255,0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <div class="logo">
+            <i class="fas fa-industry"></i>
+        </div>
+        <h1>ProduFlow Display</h1>
+        <p>Seleciona uma estação para visualizar o ecrã de produção</p>
+    </header>
+
+    <div class="instructions">
+        <h5><i class="fas fa-info-circle me-2"></i>Instruções para Raspberry Pi</h5>
+        <ol>
+            <li>Clica numa estação para abrir o ecrã de display</li>
+            <li>No Raspberry Pi, abre o browser em modo fullscreen (F11)</li>
+            <li>O ecrã atualiza automaticamente a cada 10 segundos</li>
+            <li>URL direto: <code>http://[IP]:10757/display/[ID]</code></li>
+        </ol>
+    </div>
+
+    <div id="stations" class="stations-grid">
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>A carregar estações...</p>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>ProduFlow - Sistema de Gestão de Produção</p>
+        <p><a href="/login">Aceder ao painel de gestão</a></p>
+    </footer>
+
+    <script>
+        const API_BASE = '/api';
+
+        async function carregarEstacoes() {
+            try {
+                // Carregar estações
+                const stationsRes = await fetch(`${API_BASE}/estacoes?ativa=true`);
+                const estacoes = await stationsRes.json();
+
+                // Para cada estação, carregar contagem de ordens
+                const estacoesComOrdens = await Promise.all(estacoes.map(async (e) => {
+                    try {
+                        const ordensRes = await fetch(`${API_BASE}/estacoes/${e.id}/ordens`);
+                        const ordens = await ordensRes.json();
+                        return { ...e, ordensCount: ordens.length };
+                    } catch {
+                        return { ...e, ordensCount: 0 };
+                    }
+                }));
+
+                renderizarEstacoes(estacoesComOrdens);
+            } catch (error) {
+                console.error('Erro ao carregar estações:', error);
+                document.getElementById('stations').innerHTML = `
+                    <div class="loading">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Erro ao carregar estações</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderizarEstacoes(estacoes) {
+            const container = document.getElementById('stations');
+
+            if (estacoes.length === 0) {
+                container.innerHTML = `
+                    <div class="loading">
+                        <i class="fas fa-inbox"></i>
+                        <p>Nenhuma estação configurada</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = estacoes.map(e => `
+                <a href="/display/${e.id}" class="station-card" style="--station-color: ${e.cor || '#0d6efd'}">
+                    <div class="station-icon" style="background: ${e.cor || '#0d6efd'}">
+                        <i class="fas ${e.icone || 'fa-cog'}"></i>
+                    </div>
+                    <div class="station-name">${e.nome}</div>
+                    <div class="station-orders">
+                        <span class="count">${e.ordensCount}</span> ${e.ordensCount === 1 ? 'ordem' : 'ordens'} pendentes
+                    </div>
+                    <div class="station-badge ${e.ordensCount > 0 ? 'has-orders' : ''}">
+                        ${e.ordensCount > 0 ? '<i class="fas fa-play me-1"></i>Em produção' : '<i class="fas fa-check me-1"></i>Disponível'}
+                    </div>
+                </a>
+            `).join('');
+        }
+
+        // Iniciar
+        carregarEstacoes();
+    </script>
+</body>
+</html>
