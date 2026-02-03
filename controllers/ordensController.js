@@ -9,10 +9,11 @@ const bomCalculator = require('../utils/bomCalculator');
 function emitOrderUpdate(req, event, data) {
     const io = req.app.get('io');
     if (io) {
-        // Emitir para todos os displays de estações
+        console.log(`📡 Emitindo evento WebSocket: ${event}`, data);
+        // Emitir para TODOS os clientes conectados (displays, dashboard, etc)
         io.emit(event, data);
-        // Emitir para dashboard
-        io.to('dashboard').emit(event, data);
+    } else {
+        console.log('⚠️ WebSocket io não disponível');
     }
 }
 
