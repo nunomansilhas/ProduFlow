@@ -41,7 +41,7 @@ const ESTADOS_ESTACAO = {
  * Fazer pedido à API
  */
 async function apiRequest(endpoint, options = {}) {
-    const url = endpoint.startsWith('/') ? endpoint : `${API_BASE}/${endpoint}`;
+    const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
     const defaultOptions = {
         headers: {
@@ -399,7 +399,7 @@ async function carregarContagemAlertas() {
  */
 async function logout() {
     try {
-        await api.post('/auth/logout');
+        await fetch('/auth/logout', { method: 'POST' });
         window.location.href = '/login';
     } catch (error) {
         console.error('Erro ao fazer logout:', error);
