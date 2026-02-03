@@ -339,7 +339,8 @@
         // Carregar nome do utilizador
         async function carregarUser() {
             try {
-                const user = await api.get('/auth/me');
+                const response = await fetch('/auth/me');
+                const user = await response.json();
                 document.getElementById('user-nome').textContent = user.nome;
             } catch (error) {
                 console.error('Erro ao carregar utilizador:', error);
