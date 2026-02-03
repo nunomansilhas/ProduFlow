@@ -25,7 +25,7 @@ exports.listar = async (req, res) => {
         let sql = `
             SELECT
                 o.*,
-                p.nome AS produto_nome,
+                COALESCE(p.nome, o.descricao_trabalho, 'Biscate') AS produto_nome,
                 p.sku AS produto_sku,
                 (SELECT e.nome FROM ordem_estacoes oe
                  JOIN estacoes e ON oe.estacao_id = e.id
@@ -37,7 +37,7 @@ exports.listar = async (req, res) => {
                  LIMIT 1) AS estacao_cor,
                 DATEDIFF(o.data_prevista, CURRENT_DATE) AS dias_para_entrega
             FROM ordens o
-            JOIN produtos p ON o.produto_id = p.id
+            LEFT JOIN produtos p ON o.produto_id = p.id
             WHERE 1=1
         `;
         const params = [];
@@ -79,11 +79,11 @@ exports.obter = async (req, res) => {
 
         const [rows] = await db.query(`
             SELECT o.*,
-                   p.nome AS produto_nome,
+                   COALESCE(p.nome, o.descricao_trabalho, 'Biscate') AS produto_nome,
                    p.sku AS produto_sku,
                    c.nome AS cliente_nome_db
             FROM ordens o
-            JOIN produtos p ON o.produto_id = p.id
+            LEFT JOIN produtos p ON o.produto_id = p.id
             LEFT JOIN clientes c ON o.cliente_id = c.id
             WHERE o.id = ?
         `, [id]);
@@ -137,10 +137,21 @@ exports.obter = async (req, res) => {
 // Criar ordem
 exports.criar = async (req, res) => {
     try {
-        const { produto_id, quantidade, cliente_id, cliente_nome, data_prevista, prioridade, notas, estacoes: customEstacoes, servicos: customServicos } = req.body;
+        const { produto_id, quantidade, descricao_trabalho, cliente_id, cliente_nome, data_prevista, prioridade, notas, estacoes: customEstacoes, servicos: customServicos } = req.body;
 
-        if (!produto_id || !quantidade) {
-            return res.status(400).json({ error: 'produto_id e quantidade são obrigatórios' });
+        // Validação: precisa de produto_id OU descricao_trabalho (para biscates)
+        if (!produto_id && !descricao_trabalho) {
+            return res.status(400).json({ error: 'Selecione um produto ou forneça uma descrição do trabalho (biscate)' });
+        }
+
+        if (!quantidade) {
+            return res.status(400).json({ error: 'Quantidade é obrigatória' });
+        }
+
+        // Para biscates, é obrigatório ter estações personalizadas
+        const isBiscate = !produto_id;
+        if (isBiscate && (!customEstacoes || customEstacoes.length === 0)) {
+            return res.status(400).json({ error: 'Para biscates, é necessário definir pelo menos uma estação de trabalho' });
         }
 
         // Gerar número da ordem
@@ -150,12 +161,13 @@ exports.criar = async (req, res) => {
         // Criar ordem
         const [result] = await db.query(
             `INSERT INTO ordens
-             (numero, produto_id, quantidade, cliente_id, cliente_nome, data_prevista, prioridade, notas)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             (numero, produto_id, quantidade, descricao_trabalho, cliente_id, cliente_nome, data_prevista, prioridade, notas)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 numero,
-                produto_id,
+                produto_id || null,
                 quantidade,
+                descricao_trabalho || null,
                 cliente_id || null,
                 cliente_nome || null,
                 data_prevista || null,
@@ -176,8 +188,8 @@ exports.criar = async (req, res) => {
                     [ordem_id, customEstacoes[i], i + 1]
                 );
             }
-        } else {
-            // Tentar usar estações do produto
+        } else if (produto_id) {
+            // Tentar usar estações do produto (só se tiver produto)
             const [estacoes] = await db.query(`
                 SELECT estacao_id, ordem FROM produto_estacoes
                 WHERE produto_id = ?
@@ -205,30 +217,32 @@ exports.criar = async (req, res) => {
             }
         }
 
-        // Calcular e criar registos de materiais
-        const materiais = await bomCalculator.calcularMateriaisBOM(produto_id, quantidade);
+        // Calcular e criar registos de materiais (só se tiver produto)
         const alertas = [];
+        if (produto_id) {
+            const materiais = await bomCalculator.calcularMateriaisBOM(produto_id, quantidade);
 
-        for (const mat of materiais) {
-            await db.query(
-                `INSERT INTO ordem_materiais (ordem_id, material_id, quantidade_necessaria)
-                 VALUES (?, ?, ?)`,
-                [ordem_id, mat.material_id, mat.quantidade_total]
-            );
+            for (const mat of materiais) {
+                await db.query(
+                    `INSERT INTO ordem_materiais (ordem_id, material_id, quantidade_necessaria)
+                     VALUES (?, ?, ?)`,
+                    [ordem_id, mat.material_id, mat.quantidade_total]
+                );
 
-            // Verificar stock
-            if (mat.stock_atual < mat.quantidade_total) {
-                alertas.push({
-                    tipo: 'material_insuficiente',
-                    mensagem: `Material insuficiente para ${numero}: ${mat.nome} (necessário: ${mat.quantidade_total}, disponível: ${mat.stock_atual})`,
-                    material_id: mat.material_id,
-                    ordem_id: ordem_id
-                });
+                // Verificar stock
+                if (mat.stock_atual < mat.quantidade_total) {
+                    alertas.push({
+                        tipo: 'material_insuficiente',
+                        mensagem: `Material insuficiente para ${numero}: ${mat.nome} (necessário: ${mat.quantidade_total}, disponível: ${mat.stock_atual})`,
+                        material_id: mat.material_id,
+                        ordem_id: ordem_id
+                    });
+                }
             }
         }
 
         // Criar registos de serviços externos
-        // Prioridade: 1) Array customizado enviado pelo utilizador, 2) Serviços do BOM do produto
+        // Prioridade: 1) Array customizado enviado pelo utilizador, 2) Serviços do BOM do produto (se tiver produto)
         if (customServicos && Array.isArray(customServicos) && customServicos.length > 0) {
             // Usar serviços selecionados pelo utilizador
             for (const servicoId of customServicos) {
@@ -237,8 +251,8 @@ exports.criar = async (req, res) => {
                     [ordem_id, servicoId]
                 );
             }
-        } else if (!customServicos) {
-            // Sem array de serviços enviado - usar do BOM
+        } else if (!customServicos && produto_id) {
+            // Sem array de serviços enviado e tem produto - usar do BOM
             const [servicos] = await db.query(`
                 SELECT DISTINCT servico_id FROM bom_linhas
                 WHERE produto_id = ? AND tipo = 'servico_externo'
@@ -251,7 +265,7 @@ exports.criar = async (req, res) => {
                 );
             }
         }
-        // Se customServicos é array vazio, não adiciona nenhum serviço
+        // Se customServicos é array vazio ou é biscate sem serviços, não adiciona nenhum serviço
 
         // Criar alertas
         for (const alerta of alertas) {
@@ -265,7 +279,8 @@ exports.criar = async (req, res) => {
             id: ordem_id,
             numero: numero,
             alertas: alertas.length,
-            message: 'Ordem criada com sucesso'
+            isBiscate: isBiscate,
+            message: isBiscate ? 'Biscate criado com sucesso' : 'Ordem criada com sucesso'
         });
     } catch (error) {
         console.error('Erro ao criar ordem:', error);
@@ -525,8 +540,13 @@ exports.verificarStock = async (req, res) => {
     try {
         const { produto_id, quantidade } = req.query;
 
-        if (!produto_id || !quantidade) {
-            return res.status(400).json({ error: 'produto_id e quantidade são obrigatórios' });
+        // Para biscates (sem produto), não há materiais a verificar
+        if (!produto_id) {
+            return res.json([]);
+        }
+
+        if (!quantidade) {
+            return res.status(400).json({ error: 'quantidade é obrigatória' });
         }
 
         const materiais = await bomCalculator.calcularMateriaisBOM(produto_id, parseFloat(quantidade));

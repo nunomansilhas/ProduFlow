@@ -125,12 +125,25 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="card mb-4">
-                        <div class="card-header">Dados da Ordem</div>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Dados da Ordem</span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="tipo_ordem" id="tipo_produto" checked onchange="toggleTipoOrdem()">
+                                <label class="btn btn-outline-primary" for="tipo_produto"><i class="fas fa-boxes me-1"></i>Produto</label>
+                                <input type="radio" class="btn-check" name="tipo_ordem" id="tipo_biscate" onchange="toggleTipoOrdem()">
+                                <label class="btn btn-outline-warning" for="tipo_biscate"><i class="fas fa-wrench me-1"></i>Biscate</label>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <form id="ordem-form">
-                                <div class="mb-3">
+                                <div class="mb-3" id="produto-container">
                                     <label class="form-label">Produto *</label>
-                                    <select class="form-select" id="produto_id" required onchange="verificarStock()"></select>
+                                    <select class="form-select" id="produto_id" onchange="verificarStock()"></select>
+                                </div>
+                                <div class="mb-3" id="biscate-container" style="display: none;">
+                                    <label class="form-label">Descricao do Trabalho *</label>
+                                    <textarea class="form-control" id="descricao_trabalho" rows="2" placeholder="Descreva o trabalho a realizar..."></textarea>
+                                    <small class="text-muted">Ex: Reparacao de portao para cliente X, Soldadura de estrutura metalica</small>
                                 </div>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
@@ -189,7 +202,7 @@
                     <div class="card mb-4" id="card-servicos" style="display: none;">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <span><i class="fas fa-truck me-2"></i>Servicos Externos</span>
-                            <small class="text-muted">Clique para remover</small>
+                            <small class="text-muted" id="servicos-hint">Clique para remover</small>
                         </div>
                         <div class="card-body p-0">
                             <div id="servicos-container" class="p-3"></div>
@@ -212,13 +225,16 @@
     <script>
         let produtos = [];
         let todasEstacoes = [];
+        let todosServicos = [];
         let estacoesOrdem = []; // Ordem personalizada das estações
         let servicosOrdem = []; // Serviços externos selecionados
+        let modoBiscate = false;
 
         async function carregarDados() {
             try {
                 produtos = await api.get('/produtos?ativo=true');
                 todasEstacoes = await api.get('/estacoes?ativa=true');
+                todosServicos = await api.get('/servicos?ativo=true');
 
                 document.getElementById('produto_id').innerHTML =
                     '<option value="">Selecionar produto...</option>' +
@@ -226,6 +242,78 @@
             } catch (error) {
                 mostrarErro('Erro ao carregar dados');
             }
+        }
+
+        function toggleTipoOrdem() {
+            modoBiscate = document.getElementById('tipo_biscate').checked;
+            const produtoContainer = document.getElementById('produto-container');
+            const biscateContainer = document.getElementById('biscate-container');
+
+            if (modoBiscate) {
+                produtoContainer.style.display = 'none';
+                biscateContainer.style.display = 'block';
+                document.getElementById('produto_id').value = '';
+                document.getElementById('produto_id').removeAttribute('required');
+                document.getElementById('descricao_trabalho').setAttribute('required', '');
+
+                // Carregar todas estações e serviços para biscate
+                carregarEstacoesParaBiscate();
+                carregarServicosParaBiscate();
+
+                // Limpar verificação de stock
+                document.getElementById('stock-verificacao').innerHTML =
+                    '<div class="alert alert-info m-0"><i class="fas fa-info-circle me-2"></i>Biscates nao tem BOM - sem verificacao de stock automatica.</div>';
+            } else {
+                produtoContainer.style.display = 'block';
+                biscateContainer.style.display = 'none';
+                document.getElementById('produto_id').setAttribute('required', '');
+                document.getElementById('descricao_trabalho').removeAttribute('required');
+                document.getElementById('descricao_trabalho').value = '';
+
+                // Limpar estações e serviços
+                estacoesOrdem = [];
+                servicosOrdem = [];
+                document.getElementById('estacoes-container').innerHTML =
+                    '<p class="text-muted text-center">Selecione um produto para ver as estacoes</p>';
+                document.getElementById('card-servicos').style.display = 'none';
+                document.getElementById('stock-verificacao').innerHTML =
+                    '<p class="text-muted text-center p-3">Selecione um produto para verificar o stock</p>';
+            }
+        }
+
+        function carregarEstacoesParaBiscate() {
+            // Usar todas as estações ativas
+            estacoesOrdem = todasEstacoes.map(e => ({
+                id: e.id,
+                nome: e.nome,
+                icone: e.icone,
+                cor: e.cor,
+                ativo: true
+            }));
+            renderizarEstacoes();
+        }
+
+        function carregarServicosParaBiscate() {
+            const card = document.getElementById('card-servicos');
+            const hint = document.getElementById('servicos-hint');
+
+            if (!todosServicos || todosServicos.length === 0) {
+                card.style.display = 'none';
+                servicosOrdem = [];
+                return;
+            }
+
+            // Mostrar todos os serviços disponíveis, mas desativados por defeito
+            servicosOrdem = todosServicos.map(s => ({
+                id: s.id,
+                nome: s.nome,
+                fornecedor: s.fornecedor_nome || '-',
+                ativo: false // Desativados por defeito para biscates
+            }));
+
+            hint.textContent = 'Clique para adicionar';
+            card.style.display = 'block';
+            renderizarServicos();
         }
 
         async function carregarEstacoesProduto() {
@@ -269,6 +357,7 @@
         async function carregarServicosProduto(produtoId) {
             const card = document.getElementById('card-servicos');
             const container = document.getElementById('servicos-container');
+            const hint = document.getElementById('servicos-hint');
 
             if (!produtoId) {
                 card.style.display = 'none';
@@ -294,6 +383,7 @@
                     ativo: true
                 }));
 
+                hint.textContent = 'Clique para remover';
                 card.style.display = 'block';
                 renderizarServicos();
             } catch (error) {
@@ -504,9 +594,32 @@
             // Filtrar serviços ativos
             const servicosAtivos = servicosOrdem.filter(s => s.ativo).map(s => s.id);
 
+            const produtoId = document.getElementById('produto_id').value;
+            const descricaoTrabalho = document.getElementById('descricao_trabalho').value;
+
+            // Validação conforme modo
+            if (modoBiscate) {
+                if (!descricaoTrabalho.trim()) {
+                    mostrarErro('Descrição do trabalho é obrigatória para biscates');
+                    return;
+                }
+            } else {
+                if (!produtoId) {
+                    mostrarErro('Selecione um produto');
+                    return;
+                }
+            }
+
+            const quantidade = parseInt(document.getElementById('quantidade').value);
+            if (!quantidade || quantidade < 1) {
+                mostrarErro('Quantidade deve ser pelo menos 1');
+                return;
+            }
+
             const data = {
-                produto_id: document.getElementById('produto_id').value,
-                quantidade: parseInt(document.getElementById('quantidade').value),
+                produto_id: produtoId || null,
+                descricao_trabalho: modoBiscate ? descricaoTrabalho.trim() : null,
+                quantidade: quantidade,
                 prioridade: parseInt(document.getElementById('prioridade').value),
                 cliente_nome: document.getElementById('cliente_nome').value || null,
                 data_prevista: document.getElementById('data_prevista').value || null,
@@ -515,14 +628,10 @@
                 servicos: servicosAtivos  // Serviços externos selecionados
             };
 
-            if (!data.produto_id || !data.quantidade) {
-                mostrarErro('Produto e quantidade são obrigatórios');
-                return;
-            }
-
             try {
                 const result = await api.post('/ordens', data);
-                mostrarSucesso(`Ordem ${result.numero} criada com sucesso`);
+                const tipoOrdem = result.isBiscate ? 'Biscate' : 'Ordem';
+                mostrarSucesso(`${tipoOrdem} ${result.numero} criado com sucesso`);
 
                 if (result.alertas > 0) {
                     mostrarAviso(`${result.alertas} alerta(s) de stock criados`);

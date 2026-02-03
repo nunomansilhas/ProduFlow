@@ -190,10 +190,14 @@
                                    o.estado === 'aguarda_externo' ? 'bg-warning text-dark' : 'bg-secondary';
                 const prazoClass = o.dias_para_entrega < 0 ? 'text-danger fw-bold' :
                                   o.dias_para_entrega <= 2 ? 'text-warning' : '';
+                const isBiscate = !o.produto_id;
                 return `
                     <tr class="border-prioridade-${o.prioridade}">
                         <td><a href="/ordens/${o.id}" class="text-light fw-bold">${o.numero}</a></td>
-                        <td>${o.produto_nome} <code class="ms-1">${o.produto_sku || ''}</code></td>
+                        <td>
+                            ${isBiscate ? '<span class="badge bg-warning text-dark me-1" title="Biscate"><i class="fas fa-wrench"></i></span>' : ''}
+                            ${o.produto_nome} ${o.produto_sku ? `<code class="ms-1">${o.produto_sku}</code>` : ''}
+                        </td>
                         <td>${o.quantidade}</td>
                         <td>${o.cliente_nome || '-'}</td>
                         <td><span class="badge ${estadoClass}">${o.estado.replace('_', ' ')}</span></td>

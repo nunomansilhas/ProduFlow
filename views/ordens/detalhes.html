@@ -244,9 +244,13 @@
                                    ordem.estado === 'em_producao' ? 'bg-info' :
                                    ordem.estado === 'aguarda_externo' ? 'bg-warning text-dark' : 'bg-secondary';
 
+                const isBiscate = !ordem.produto_id;
+
                 document.getElementById('info-geral').innerHTML = `
-                    <p><strong>Produto:</strong> ${ordem.produto_nome}</p>
-                    <p><strong>SKU:</strong> ${ordem.produto_sku || '-'}</p>
+                    ${isBiscate ? '<p><span class="badge bg-warning text-dark mb-2"><i class="fas fa-wrench me-1"></i>BISCATE</span></p>' : ''}
+                    <p><strong>${isBiscate ? 'Trabalho:' : 'Produto:'}</strong> ${ordem.produto_nome}</p>
+                    ${!isBiscate ? `<p><strong>SKU:</strong> ${ordem.produto_sku || '-'}</p>` : ''}
+                    ${ordem.descricao_trabalho && !isBiscate ? `<p><strong>Descricao:</strong> ${ordem.descricao_trabalho}</p>` : ''}
                     <p><strong>Quantidade:</strong> ${ordem.quantidade}</p>
                     <p><strong>Cliente:</strong> ${ordem.cliente_nome || ordem.cliente_nome_db || '-'}</p>
                     <p><strong>Prioridade:</strong> ${badgePrioridade(ordem.prioridade)}</p>
@@ -321,9 +325,11 @@
 
         function renderizarMateriais() {
             const tbody = document.getElementById('materiais-table');
+            const isBiscate = !ordem.produto_id;
 
             if (!ordem.materiais || ordem.materiais.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Sem materiais</td></tr>';
+                const msg = isBiscate ? 'Biscate - sem BOM automatica' : 'Sem materiais';
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">${msg}</td></tr>`;
                 return;
             }
 

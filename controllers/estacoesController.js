@@ -178,13 +178,13 @@ exports.ordensNaEstacao = async (req, res) => {
         const [rows] = await db.query(`
             SELECT
                 o.*,
-                p.nome AS produto_nome,
+                COALESCE(p.nome, o.descricao_trabalho, 'Biscate') AS produto_nome,
                 p.sku AS produto_sku,
                 oe.estado AS estado_estacao,
                 oe.iniciado_em
             FROM ordem_estacoes oe
             JOIN ordens o ON oe.ordem_id = o.id
-            JOIN produtos p ON o.produto_id = p.id
+            LEFT JOIN produtos p ON o.produto_id = p.id
             WHERE oe.estacao_id = ?
               AND oe.estado IN ('pendente', 'em_progresso')
               AND o.estado != 'concluida'

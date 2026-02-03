@@ -66,13 +66,14 @@ exports.ordensEmProducao = async (req, res) => {
                 o.prioridade,
                 o.estado,
                 o.data_prevista,
-                p.nome AS produto_nome,
+                o.produto_id,
+                COALESCE(p.nome, o.descricao_trabalho, 'Biscate') AS produto_nome,
                 p.sku AS produto_sku,
                 e.nome AS estacao_atual,
                 e.cor AS estacao_cor,
                 DATEDIFF(o.data_prevista, CURRENT_DATE) AS dias_para_entrega
             FROM ordens o
-            JOIN produtos p ON o.produto_id = p.id
+            LEFT JOIN produtos p ON o.produto_id = p.id
             LEFT JOIN ordem_estacoes oe ON o.id = oe.ordem_id AND oe.estado = 'em_progresso'
             LEFT JOIN estacoes e ON oe.estacao_id = e.id
             WHERE o.estado IN ('em_producao', 'aguarda_externo')
