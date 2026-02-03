@@ -211,8 +211,10 @@
 
                 if (alertas.length === 0) {
                     lista.innerHTML = `
-                        <div class="list-group-item text-muted text-center py-4">
-                            <i class="fas fa-check-circle me-2"></i>Sem alertas
+                        <div class="empty-state">
+                            <i class="fas fa-bell-slash"></i>
+                            <h5>Tudo em ordem!</h5>
+                            <p>Não existem alertas pendentes.</p>
                         </div>
                     `;
                     return;
@@ -242,7 +244,12 @@
                 if (ordens.length === 0) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">Nenhuma ordem em producao</td>
+                            <td colspan="6" class="empty-state">
+                                <i class="fas fa-clipboard-list"></i>
+                                <h5>Sem ordens em produção</h5>
+                                <p>Não existem ordens em produção de momento.</p>
+                                <a href="/ordens/nova" class="btn btn-primary btn-sm"><i class="fas fa-plus me-2"></i>Nova Ordem</a>
+                            </td>
                         </tr>
                     `;
                     return;
@@ -283,8 +290,10 @@
                 if (stock.length === 0) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
-                                <i class="fas fa-check-circle me-2"></i>Stock em ordem
+                            <td colspan="6" class="empty-state">
+                                <i class="fas fa-boxes"></i>
+                                <h5>Stock em ordem</h5>
+                                <p>Todos os materiais estão acima do stock mínimo.</p>
                             </td>
                         </tr>
                     `;
