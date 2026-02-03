@@ -5,6 +5,17 @@
 const db = require('../config/database');
 const bomCalculator = require('../utils/bomCalculator');
 
+// Função auxiliar para emitir eventos WebSocket
+function emitOrderUpdate(req, event, data) {
+    const io = req.app.get('io');
+    if (io) {
+        // Emitir para todos os displays de estações
+        io.emit(event, data);
+        // Emitir para dashboard
+        io.to('dashboard').emit(event, data);
+    }
+}
+
 // Listar ordens
 exports.listar = async (req, res) => {
     try {
@@ -311,11 +322,26 @@ exports.iniciarProducao = async (req, res) => {
         );
 
         // Iniciar primeira estação
-        await db.query(
-            `UPDATE ordem_estacoes SET estado = 'em_progresso', iniciado_em = NOW()
-             WHERE ordem_id = ? AND ordem = (SELECT MIN(ordem) FROM ordem_estacoes WHERE ordem_id = ?)`,
-            [id, id]
+        const [primeiraEstacao] = await db.query(
+            `SELECT estacao_id FROM ordem_estacoes
+             WHERE ordem_id = ?
+             ORDER BY ordem LIMIT 1`,
+            [id]
         );
+
+        if (primeiraEstacao.length > 0) {
+            await db.query(
+                `UPDATE ordem_estacoes SET estado = 'em_progresso', iniciado_em = NOW()
+                 WHERE ordem_id = ? AND estacao_id = ?`,
+                [id, primeiraEstacao[0].estacao_id]
+            );
+
+            // Emitir evento WebSocket
+            emitOrderUpdate(req, 'order-started', {
+                orderId: id,
+                stationId: primeiraEstacao[0].estacao_id
+            });
+        }
 
         res.json({ message: 'Produção iniciada' });
     } catch (error) {
@@ -365,6 +391,13 @@ exports.avancarEstacao = async (req, res) => {
                 [id, proxima[0].estacao_id]
             );
 
+            // Emitir evento WebSocket - saiu da estação anterior
+            emitOrderUpdate(req, 'order-station-changed', {
+                orderId: id,
+                fromStation: estacao_id,
+                toStation: proxima[0].estacao_id
+            });
+
             res.json({
                 message: 'Avançou para próxima estação',
                 proxima_estacao: proxima[0].estacao_id
@@ -379,10 +412,25 @@ exports.avancarEstacao = async (req, res) => {
 
             if (servicos[0].count > 0) {
                 await db.query(`UPDATE ordens SET estado = 'aguarda_externo' WHERE id = ?`, [id]);
+
+                // Emitir evento WebSocket
+                emitOrderUpdate(req, 'order-completed-station', {
+                    orderId: id,
+                    stationId: estacao_id,
+                    status: 'aguarda_externo'
+                });
+
                 res.json({ message: 'Aguardando serviços externos', estado: 'aguarda_externo' });
             } else {
                 // Concluir ordem e descontar stock
                 await concluirOrdem(id);
+
+                // Emitir evento WebSocket
+                emitOrderUpdate(req, 'order-completed', {
+                    orderId: id,
+                    stationId: estacao_id
+                });
+
                 res.json({ message: 'Ordem concluída', estado: 'concluida' });
             }
         }
