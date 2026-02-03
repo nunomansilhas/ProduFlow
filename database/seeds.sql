@@ -8,8 +8,8 @@ USE produflow;
 -- ============================================
 -- Password: admin123 (hash bcrypt)
 INSERT INTO users (nome, email, password_hash, role) VALUES
-('Administrador', 'admin@mansilhas.pt', '$2b$10$rqJPp1TnP5XYdGvHjNqNS.CmQO8a3xXlXvqL9KvDMNZJ5JrYJ5Ksa', 'admin'),
-('Gestor Produção', 'gestor@mansilhas.pt', '$2b$10$rqJPp1TnP5XYdGvHjNqNS.CmQO8a3xXlXvqL9KvDMNZJ5JrYJ5Ksa', 'gestor');
+('Administrador', 'admin@mansilhas.pt', '$2b$10$WH7y95xNMMj93CAe.u.OP.NayMkdvk/e/bqoH2f.JwGko9kCGcVhK', 'admin'),
+('Gestor Produção', 'gestor@mansilhas.pt', '$2b$10$WH7y95xNMMj93CAe.u.OP.NayMkdvk/e/bqoH2f.JwGko9kCGcVhK', 'gestor');
 
 -- ============================================
 -- CATEGORIAS
