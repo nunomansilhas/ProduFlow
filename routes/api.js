@@ -22,7 +22,17 @@ const ordensController = require('../controllers/ordensController');
 const alertasController = require('../controllers/alertasController');
 const dashboardController = require('../controllers/dashboardController');
 
-// Proteger todas as rotas API
+// ============================================
+// ROTAS PÚBLICAS (para displays sem login)
+// ============================================
+router.get('/display/estacoes', estacoesController.listar);
+router.get('/display/estacoes/:id', estacoesController.obter);
+router.get('/display/estacoes/:id/ordens', estacoesController.ordensNaEstacao);
+router.post('/display/ordens/:id/avancar', ordensController.avancarEstacao);
+
+// ============================================
+// ROTAS PROTEGIDAS (requerem autenticação)
+// ============================================
 router.use(isAuthenticated);
 
 // ============================================
