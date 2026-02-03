@@ -685,6 +685,7 @@ exports.sugestoesAgrupamento = async (req, res) => {
         }
 
         // Buscar ordens do mesmo produto que ainda não começaram ou estão no início
+        // Query simplificada que funciona mesmo sem a migração de grupos
         const [ordensExistentes] = await db.query(`
             SELECT
                 o.id,
@@ -694,14 +695,11 @@ exports.sugestoesAgrupamento = async (req, res) => {
                 o.cliente_nome,
                 o.data_prevista,
                 o.estado,
-                o.grupo_id,
-                g.nome AS grupo_nome,
                 (SELECT e.nome FROM ordem_estacoes oe
                  JOIN estacoes e ON oe.estacao_id = e.id
                  WHERE oe.ordem_id = o.id AND oe.estado = 'em_progresso'
                  LIMIT 1) AS estacao_atual
             FROM ordens o
-            LEFT JOIN grupos_producao g ON o.grupo_id = g.id
             WHERE o.produto_id = ?
               AND o.estado IN ('pendente', 'em_producao')
             ORDER BY o.prioridade DESC, o.data_prevista
