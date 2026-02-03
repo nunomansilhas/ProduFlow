@@ -1,0 +1,429 @@
+/**
+ * ProduFlow - Estilos Customizados
+ * Complemento ao Bootstrap 5 Dark Theme
+ */
+
+/* ============================================
+   VARIÁVEIS GLOBAIS
+============================================ */
+:root {
+    --pf-primary: #0d6efd;
+    --pf-success: #198754;
+    --pf-warning: #ffc107;
+    --pf-danger: #dc3545;
+    --pf-info: #0dcaf0;
+    --pf-sidebar-width: 250px;
+    --pf-sidebar-collapsed: 60px;
+    --pf-navbar-height: 56px;
+}
+
+/* ============================================
+   LAYOUT GERAL
+============================================ */
+html, body {
+    height: 100%;
+}
+
+body {
+    background-color: #1a1d21;
+    min-height: 100vh;
+}
+
+/* Wrapper principal */
+.wrapper {
+    display: flex;
+    min-height: calc(100vh - var(--pf-navbar-height));
+}
+
+/* ============================================
+   NAVBAR
+============================================ */
+.navbar {
+    height: var(--pf-navbar-height);
+    border-bottom: 1px solid #2d3238 !important;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.navbar-brand i {
+    color: var(--pf-primary);
+}
+
+.navbar .badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 0.65rem;
+}
+
+/* ============================================
+   SIDEBAR
+============================================ */
+.sidebar {
+    position: fixed;
+    top: var(--pf-navbar-height);
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 0;
+    width: var(--pf-sidebar-width);
+    background-color: #212529;
+    border-right: 1px solid #2d3238;
+    overflow-y: auto;
+}
+
+.sidebar .nav-link {
+    color: #adb5bd;
+    padding: 0.75rem 1rem;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-left-color: var(--pf-primary);
+}
+
+.sidebar .nav-link.active {
+    color: #fff;
+    background-color: rgba(13, 110, 253, 0.15);
+    border-left-color: var(--pf-primary);
+}
+
+.sidebar .nav-link i {
+    width: 24px;
+    text-align: center;
+    margin-right: 0.5rem;
+}
+
+.sidebar-heading {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6c757d;
+    padding: 1rem 1rem 0.5rem;
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   CONTEÚDO PRINCIPAL
+============================================ */
+.main-content {
+    flex: 1;
+    margin-left: var(--pf-sidebar-width);
+    padding: 1.5rem;
+    min-height: calc(100vh - var(--pf-navbar-height));
+}
+
+/* ============================================
+   CARDS
+============================================ */
+.card {
+    border: 1px solid #2d3238;
+    background-color: #212529;
+}
+
+.card-header {
+    background-color: #1a1d21;
+    border-bottom: 1px solid #2d3238;
+}
+
+/* Cards de estatísticas */
+.stat-card {
+    text-align: center;
+    padding: 1rem;
+}
+
+.stat-card .stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-card .stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.5rem;
+}
+
+.stat-card.stat-danger .stat-number {
+    color: var(--pf-danger);
+}
+
+.stat-card.stat-warning .stat-number {
+    color: var(--pf-warning);
+}
+
+.stat-card.stat-success .stat-number {
+    color: var(--pf-success);
+}
+
+.stat-card.stat-info .stat-number {
+    color: var(--pf-info);
+}
+
+/* ============================================
+   TABELAS
+============================================ */
+.table {
+    --bs-table-bg: transparent;
+}
+
+.table > thead {
+    background-color: #1a1d21;
+}
+
+.table > thead > tr > th {
+    border-bottom-width: 1px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #adb5bd;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================
+   MODAIS
+============================================ */
+.modal-content {
+    background-color: #212529;
+    border: 1px solid #2d3238;
+}
+
+.modal-header {
+    border-bottom-color: #2d3238;
+}
+
+.modal-footer {
+    border-top-color: #2d3238;
+}
+
+/* ============================================
+   FORMULÁRIOS
+============================================ */
+.form-control,
+.form-select {
+    background-color: #1a1d21;
+    border-color: #2d3238;
+    color: #fff;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: #1a1d21;
+    border-color: var(--pf-primary);
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-control::placeholder {
+    color: #6c757d;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #adb5bd;
+    margin-bottom: 0.25rem;
+}
+
+/* ============================================
+   ALERTAS E BADGES
+============================================ */
+.alert-stock-baixo {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-color: var(--pf-warning);
+    color: var(--pf-warning);
+}
+
+.alert-stock-negativo {
+    background-color: rgba(220, 53, 69, 0.15);
+    border-color: var(--pf-danger);
+    color: var(--pf-danger);
+}
+
+.badge-prioridade-1 { background-color: #198754; }
+.badge-prioridade-2 { background-color: #ffc107; color: #000; }
+.badge-prioridade-3 { background-color: #fd7e14; }
+.badge-prioridade-4 { background-color: #dc3545; }
+
+/* ============================================
+   PÁGINA DE LOGIN
+============================================ */
+.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1d21 0%, #2d3238 100%);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    background-color: #212529;
+    border-radius: 0.5rem;
+    border: 1px solid #2d3238;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-logo i {
+    font-size: 3rem;
+    color: var(--pf-primary);
+}
+
+.login-logo h1 {
+    font-size: 1.5rem;
+    margin-top: 0.5rem;
+    color: #fff;
+}
+
+/* ============================================
+   PRIORIDADES
+============================================ */
+.prioridade-1 { color: #198754; }
+.prioridade-2 { color: #ffc107; }
+.prioridade-3 { color: #fd7e14; }
+.prioridade-4 { color: #dc3545; }
+
+.border-prioridade-1 { border-left: 4px solid #198754 !important; }
+.border-prioridade-2 { border-left: 4px solid #ffc107 !important; }
+.border-prioridade-3 { border-left: 4px solid #fd7e14 !important; }
+.border-prioridade-4 { border-left: 4px solid #dc3545 !important; }
+
+/* ============================================
+   ESTADOS
+============================================ */
+.estado-pendente { color: #6c757d; }
+.estado-em_producao { color: #0dcaf0; }
+.estado-em_progresso { color: #0dcaf0; }
+.estado-aguarda_externo { color: #ffc107; }
+.estado-concluida { color: #198754; }
+.estado-concluido { color: #198754; }
+
+/* ============================================
+   TIMELINE (para ordens)
+============================================ */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #2d3238;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 1rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    border: 2px solid #212529;
+}
+
+.timeline-item.active::before {
+    background-color: var(--pf-primary);
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);
+}
+
+.timeline-item.completed::before {
+    background-color: var(--pf-success);
+}
+
+/* ============================================
+   LOADING
+============================================ */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner-large {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* ============================================
+   TOAST NOTIFICATIONS
+============================================ */
+.toast-container {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1100;
+}
+
+/* ============================================
+   UTILITIES
+============================================ */
+.cursor-pointer { cursor: pointer; }
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Ações em hover na tabela */
+.table-actions {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+tr:hover .table-actions {
+    opacity: 1;
+}
+
+/* ============================================
+   RESPONSIVO
+============================================ */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+}

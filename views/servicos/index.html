@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servicos Externos - ProduFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard"><i class="fas fa-industry me-2"></i>ProduFlow</a>
+            <div class="d-flex align-items-center ms-auto">
+                <div class="dropdown">
+                    <button class="btn btn-link text-light dropdown-toggle text-decoration-none" type="button" data-bs-toggle="dropdown"><i class="fas fa-user-circle me-1"></i><span id="user-nome">Utilizador</span></button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"><li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li></ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper">
+        <nav class="sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li class="sidebar-heading">Catalogo</li>
+                <li class="nav-item"><a class="nav-link" href="/categorias"><i class="fas fa-tags"></i> Categorias</a></li>
+                <li class="nav-item"><a class="nav-link" href="/produtos"><i class="fas fa-boxes"></i> Produtos</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/servicos"><i class="fas fa-truck"></i> Servicos Externos</a></li>
+                <li class="sidebar-heading">Stock</li>
+                <li class="nav-item"><a class="nav-link" href="/fornecedores"><i class="fas fa-building"></i> Fornecedores</a></li>
+                <li class="nav-item"><a class="nav-link" href="/materias"><i class="fas fa-cubes"></i> Materias-Primas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/stock"><i class="fas fa-warehouse"></i> Stock</a></li>
+                <li class="sidebar-heading">Producao</li>
+                <li class="nav-item"><a class="nav-link" href="/estacoes"><i class="fas fa-toolbox"></i> Estacoes</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ordens"><i class="fas fa-clipboard-list"></i> Ordens</a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Servicos Externos</h1>
+                <button class="btn btn-primary" onclick="novoServico()"><i class="fas fa-plus me-2"></i>Novo Servico</button>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Fornecedor</th>
+                                    <th>Preco Est.</th>
+                                    <th>Tempo Est.</th>
+                                    <th>Notas</th>
+                                    <th width="120">Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="servicos-table">
+                                <tr><td colspan="6" class="text-center text-muted py-4">A carregar...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="servico-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-titulo">Novo Servico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="servico-form">
+                        <input type="hidden" id="servico-id">
+                        <div class="mb-3">
+                            <label class="form-label">Nome *</label>
+                            <input type="text" class="form-control" id="nome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Fornecedor</label>
+                            <select class="form-select" id="fornecedor_id"></select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Preco Estimado</label>
+                                <input type="number" class="form-control" id="preco_estimado" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tempo Est. (dias)</label>
+                                <input type="number" class="form-control" id="tempo_estimado" value="0">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notas</label>
+                            <textarea class="form-control" id="notas" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarServico()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        let servicos = [];
+        let fornecedores = [];
+
+        async function carregarDados() {
+            try {
+                fornecedores = await api.get('/fornecedores?ativo=true');
+                document.getElementById('fornecedor_id').innerHTML = '<option value="">Sem fornecedor</option>' +
+                    fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+                carregarServicos();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function carregarServicos() {
+            try {
+                servicos = await api.get('/servicos');
+                const tbody = document.getElementById('servicos-table');
+
+                if (servicos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum servico encontrado</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = servicos.map(s => `
+                    <tr class="${!s.ativo ? 'text-muted' : ''}">
+                        <td>${s.nome}</td>
+                        <td>${s.fornecedor_nome || '-'}</td>
+                        <td>${formatarMoeda(s.preco_estimado)}</td>
+                        <td>${s.tempo_estimado} dias</td>
+                        <td class="text-truncate" style="max-width: 200px;">${s.notas || '-'}</td>
+                        <td class="table-actions">
+                            <button class="btn btn-sm btn-outline-light" onclick="editarServico(${s.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="eliminarServico(${s.id})"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                mostrarErro('Erro ao carregar servicos');
+            }
+        }
+
+        function novoServico() {
+            document.getElementById('modal-titulo').textContent = 'Novo Servico';
+            document.getElementById('servico-id').value = '';
+            document.getElementById('servico-form').reset();
+            abrirModal('servico-modal');
+        }
+
+        function editarServico(id) {
+            const serv = servicos.find(s => s.id === id);
+            if (!serv) return;
+
+            document.getElementById('modal-titulo').textContent = 'Editar Servico';
+            document.getElementById('servico-id').value = serv.id;
+            document.getElementById('nome').value = serv.nome;
+            document.getElementById('fornecedor_id').value = serv.fornecedor_id || '';
+            document.getElementById('preco_estimado').value = serv.preco_estimado || 0;
+            document.getElementById('tempo_estimado').value = serv.tempo_estimado || 0;
+            document.getElementById('notas').value = serv.notas || '';
+            abrirModal('servico-modal');
+        }
+
+        async function guardarServico() {
+            const id = document.getElementById('servico-id').value;
+            const data = {
+                nome: document.getElementById('nome').value,
+                fornecedor_id: document.getElementById('fornecedor_id').value || null,
+                preco_estimado: parseFloat(document.getElementById('preco_estimado').value) || 0,
+                tempo_estimado: parseInt(document.getElementById('tempo_estimado').value) || 0,
+                notas: document.getElementById('notas').value || null
+            };
+
+            if (!data.nome) {
+                mostrarErro('Nome e obrigatorio');
+                return;
+            }
+
+            try {
+                if (id) {
+                    await api.put(`/servicos/${id}`, data);
+                    mostrarSucesso('Servico atualizado');
+                } else {
+                    await api.post('/servicos', data);
+                    mostrarSucesso('Servico criado');
+                }
+                fecharModal('servico-modal');
+                carregarServicos();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function eliminarServico(id) {
+            if (!await confirmar('Eliminar este servico?')) return;
+            try {
+                await api.delete(`/servicos/${id}`);
+                mostrarSucesso('Servico eliminado');
+                carregarServicos();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarDados);
+    </script>
+</body>
+</html>

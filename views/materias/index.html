@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Materias-Primas - ProduFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard"><i class="fas fa-industry me-2"></i>ProduFlow</a>
+            <div class="d-flex align-items-center ms-auto">
+                <a href="#" class="btn btn-link text-light position-relative me-3"><i class="fas fa-bell"></i><span class="badge bg-danger rounded-pill" id="alertas-badge" style="display: none;">0</span></a>
+                <div class="dropdown">
+                    <button class="btn btn-link text-light dropdown-toggle text-decoration-none" type="button" data-bs-toggle="dropdown"><i class="fas fa-user-circle me-1"></i><span id="user-nome">Utilizador</span></button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"><li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li></ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper">
+        <nav class="sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li class="sidebar-heading">Catalogo</li>
+                <li class="nav-item"><a class="nav-link" href="/categorias"><i class="fas fa-tags"></i> Categorias</a></li>
+                <li class="nav-item"><a class="nav-link" href="/produtos"><i class="fas fa-boxes"></i> Produtos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/servicos"><i class="fas fa-truck"></i> Servicos Externos</a></li>
+                <li class="sidebar-heading">Stock</li>
+                <li class="nav-item"><a class="nav-link" href="/fornecedores"><i class="fas fa-building"></i> Fornecedores</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/materias"><i class="fas fa-cubes"></i> Materias-Primas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/stock"><i class="fas fa-warehouse"></i> Stock</a></li>
+                <li class="sidebar-heading">Producao</li>
+                <li class="nav-item"><a class="nav-link" href="/estacoes"><i class="fas fa-toolbox"></i> Estacoes</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ordens"><i class="fas fa-clipboard-list"></i> Ordens</a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Materias-Primas</h1>
+                <button class="btn btn-primary" onclick="novaMateria()"><i class="fas fa-plus me-2"></i>Nova Materia</button>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <select class="form-select" id="filtro-categoria" onchange="carregarMaterias()">
+                        <option value="">Todas as categorias</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="filtro-pesquisa" placeholder="Pesquisar..." oninput="filtrarMaterias()">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Codigo</th>
+                                    <th>Nome</th>
+                                    <th>Categoria</th>
+                                    <th>Unidade</th>
+                                    <th>Stock</th>
+                                    <th>Preco Unit.</th>
+                                    <th width="150">Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materias-table">
+                                <tr><td colspan="7" class="text-center text-muted py-4">A carregar...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="materia-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-titulo">Nova Materia-Prima</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="materia-form">
+                        <input type="hidden" id="materia-id">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nome *</label>
+                                <input type="text" class="form-control" id="nome" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Codigo</label>
+                                <input type="text" class="form-control" id="codigo" placeholder="TUB-INOX-30">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Categoria</label>
+                                <select class="form-select" id="categoria_id"></select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Unidade *</label>
+                                <select class="form-select" id="unidade" required>
+                                    <option value="unidades">Unidades</option>
+                                    <option value="metros">Metros</option>
+                                    <option value="m2">m2</option>
+                                    <option value="kg">Kg</option>
+                                    <option value="litros">Litros</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Fornecedor</label>
+                                <select class="form-select" id="fornecedor_id"></select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Localizacao</label>
+                                <input type="text" class="form-control" id="localizacao" placeholder="Prateleira A1">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Stock Minimo</label>
+                                <input type="number" class="form-control" id="stock_minimo" value="0" step="0.01">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Preco Unitario (EUR)</label>
+                                <input type="number" class="form-control" id="preco_unitario" value="0" step="0.01">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarMateria()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        let materias = [];
+        let categorias = [];
+        let fornecedores = [];
+
+        async function carregarDados() {
+            try {
+                [categorias, fornecedores] = await Promise.all([
+                    api.get('/categorias?tipo=material'),
+                    api.get('/fornecedores?ativo=true')
+                ]);
+
+                const selCat = document.getElementById('filtro-categoria');
+                selCat.innerHTML = '<option value="">Todas as categorias</option>' +
+                    categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+                const selCatForm = document.getElementById('categoria_id');
+                selCatForm.innerHTML = '<option value="">Sem categoria</option>' +
+                    categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+                const selForn = document.getElementById('fornecedor_id');
+                selForn.innerHTML = '<option value="">Sem fornecedor</option>' +
+                    fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+
+                carregarMaterias();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function carregarMaterias() {
+            try {
+                const catId = document.getElementById('filtro-categoria').value;
+                const url = catId ? `/materias?categoria_id=${catId}` : '/materias';
+                materias = await api.get(url);
+                renderizarTabela();
+            } catch (error) {
+                mostrarErro('Erro ao carregar materias');
+            }
+        }
+
+        function filtrarMaterias() {
+            renderizarTabela();
+        }
+
+        function renderizarTabela() {
+            const pesquisa = document.getElementById('filtro-pesquisa').value.toLowerCase();
+            const filtradas = materias.filter(m =>
+                m.nome.toLowerCase().includes(pesquisa) ||
+                (m.codigo && m.codigo.toLowerCase().includes(pesquisa))
+            );
+
+            const tbody = document.getElementById('materias-table');
+            if (filtradas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Nenhuma materia encontrada</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtradas.map(m => {
+                const stockClass = m.quantidade < 0 ? 'text-danger fw-bold' : m.quantidade < m.stock_minimo ? 'text-warning' : '';
+                return `
+                    <tr>
+                        <td><code>${m.codigo || '-'}</code></td>
+                        <td>${m.nome}</td>
+                        <td>${m.categoria_nome || '-'}</td>
+                        <td>${m.unidade}</td>
+                        <td class="${stockClass}">${formatarNumero(m.quantidade)} ${m.unidade}</td>
+                        <td>${formatarMoeda(m.preco_unitario)}</td>
+                        <td class="table-actions">
+                            <button class="btn btn-sm btn-outline-light" onclick="editarMateria(${m.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="eliminarMateria(${m.id})"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function novaMateria() {
+            document.getElementById('modal-titulo').textContent = 'Nova Materia-Prima';
+            document.getElementById('materia-id').value = '';
+            document.getElementById('materia-form').reset();
+            abrirModal('materia-modal');
+        }
+
+        function editarMateria(id) {
+            const mat = materias.find(m => m.id === id);
+            if (!mat) return;
+
+            document.getElementById('modal-titulo').textContent = 'Editar Materia-Prima';
+            document.getElementById('materia-id').value = mat.id;
+            document.getElementById('nome').value = mat.nome;
+            document.getElementById('codigo').value = mat.codigo || '';
+            document.getElementById('categoria_id').value = mat.categoria_id || '';
+            document.getElementById('unidade').value = mat.unidade;
+            document.getElementById('fornecedor_id').value = mat.fornecedor_id || '';
+            document.getElementById('localizacao').value = mat.localizacao || '';
+            document.getElementById('stock_minimo').value = mat.stock_minimo || 0;
+            document.getElementById('preco_unitario').value = mat.preco_unitario || 0;
+            abrirModal('materia-modal');
+        }
+
+        async function guardarMateria() {
+            const id = document.getElementById('materia-id').value;
+            const data = {
+                nome: document.getElementById('nome').value,
+                codigo: document.getElementById('codigo').value || null,
+                categoria_id: document.getElementById('categoria_id').value || null,
+                unidade: document.getElementById('unidade').value,
+                fornecedor_id: document.getElementById('fornecedor_id').value || null,
+                localizacao: document.getElementById('localizacao').value || null,
+                stock_minimo: parseFloat(document.getElementById('stock_minimo').value) || 0,
+                preco_unitario: parseFloat(document.getElementById('preco_unitario').value) || 0
+            };
+
+            if (!data.nome || !data.unidade) {
+                mostrarErro('Nome e unidade sao obrigatorios');
+                return;
+            }
+
+            try {
+                if (id) {
+                    await api.put(`/materias/${id}`, data);
+                    mostrarSucesso('Materia atualizada');
+                } else {
+                    await api.post('/materias', data);
+                    mostrarSucesso('Materia criada');
+                }
+                fecharModal('materia-modal');
+                carregarMaterias();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function eliminarMateria(id) {
+            if (!await confirmar('Eliminar esta materia-prima?')) return;
+            try {
+                await api.delete(`/materias/${id}`);
+                mostrarSucesso('Materia eliminada');
+                carregarMaterias();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarDados);
+    </script>
+</body>
+</html>

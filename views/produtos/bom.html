@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM - ProduFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard"><i class="fas fa-industry me-2"></i>ProduFlow</a>
+            <div class="d-flex align-items-center ms-auto">
+                <div class="dropdown">
+                    <button class="btn btn-link text-light dropdown-toggle text-decoration-none" type="button" data-bs-toggle="dropdown"><i class="fas fa-user-circle me-1"></i><span id="user-nome">Utilizador</span></button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"><li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li></ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper">
+        <nav class="sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li class="sidebar-heading">Catalogo</li>
+                <li class="nav-item"><a class="nav-link" href="/categorias"><i class="fas fa-tags"></i> Categorias</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/produtos"><i class="fas fa-boxes"></i> Produtos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/servicos"><i class="fas fa-truck"></i> Servicos Externos</a></li>
+                <li class="sidebar-heading">Stock</li>
+                <li class="nav-item"><a class="nav-link" href="/fornecedores"><i class="fas fa-building"></i> Fornecedores</a></li>
+                <li class="nav-item"><a class="nav-link" href="/materias"><i class="fas fa-cubes"></i> Materias-Primas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/stock"><i class="fas fa-warehouse"></i> Stock</a></li>
+                <li class="sidebar-heading">Producao</li>
+                <li class="nav-item"><a class="nav-link" href="/estacoes"><i class="fas fa-toolbox"></i> Estacoes</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ordens"><i class="fas fa-clipboard-list"></i> Ordens</a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <div>
+                    <a href="/produtos" class="text-muted text-decoration-none"><i class="fas fa-arrow-left me-2"></i>Produtos</a>
+                    <h1 class="h2 mt-2" id="produto-nome">Carregando...</h1>
+                </div>
+                <div>
+                    <button class="btn btn-outline-light me-2" onclick="calcularCusto()"><i class="fas fa-calculator me-2"></i>Calcular Custo</button>
+                    <button class="btn btn-primary" onclick="novaLinha()"><i class="fas fa-plus me-2"></i>Adicionar Item</button>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="stat-number" id="total-materiais">0</div>
+                        <div class="stat-label">Materiais</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="stat-number" id="total-subprodutos">0</div>
+                        <div class="stat-label">Sub-produtos</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="stat-number" id="total-servicos">0</div>
+                        <div class="stat-label">Servicos</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card stat-success">
+                        <div class="stat-number" id="custo-total">-</div>
+                        <div class="stat-label">Custo Estimado</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">Bill of Materials</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Item</th>
+                                    <th>Quantidade</th>
+                                    <th>Tolerancia</th>
+                                    <th>Notas</th>
+                                    <th width="120">Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bom-table">
+                                <tr><td colspan="6" class="text-center text-muted py-4">A carregar...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="bom-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-titulo">Adicionar Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="bom-form">
+                        <input type="hidden" id="bom-id">
+                        <div class="mb-3">
+                            <label class="form-label">Tipo *</label>
+                            <select class="form-select" id="tipo" onchange="atualizarDropdown()" required>
+                                <option value="material">Material</option>
+                                <option value="subproduto">Sub-produto</option>
+                                <option value="servico_externo">Servico Externo</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="div-material">
+                            <label class="form-label">Material *</label>
+                            <select class="form-select" id="material_id"></select>
+                        </div>
+                        <div class="mb-3 d-none" id="div-subproduto">
+                            <label class="form-label">Sub-produto *</label>
+                            <select class="form-select" id="subproduto_id"></select>
+                        </div>
+                        <div class="mb-3 d-none" id="div-servico">
+                            <label class="form-label">Servico *</label>
+                            <select class="form-select" id="servico_id"></select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Quantidade *</label>
+                                <input type="number" class="form-control" id="quantidade" step="0.001" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Unidade</label>
+                                <input type="text" class="form-control" id="unidade" placeholder="metros, un...">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tolerancia (%)</label>
+                            <input type="number" class="form-control" id="tolerancia" value="0" step="0.1">
+                            <small class="text-muted">Percentagem de desperdicio esperado</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notas</label>
+                            <input type="text" class="form-control" id="notas">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarLinha()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        const produtoId = window.location.pathname.split('/')[2];
+        let bomLinhas = [];
+        let materiais = [];
+        let produtos = [];
+        let servicos = [];
+
+        async function carregarDados() {
+            try {
+                const [produto, materiaisData, produtosData, servicosData] = await Promise.all([
+                    api.get(`/produtos/${produtoId}`),
+                    api.get('/materias?ativo=true'),
+                    api.get('/produtos?ativo=true'),
+                    api.get('/servicos?ativo=true')
+                ]);
+
+                document.getElementById('produto-nome').textContent = `BOM: ${produto.nome}`;
+                document.getElementById('custo-total').textContent = formatarMoeda(produto.custo_estimado);
+
+                materiais = materiaisData;
+                produtos = produtosData.filter(p => p.id != produtoId);
+                servicos = servicosData;
+
+                document.getElementById('material_id').innerHTML =
+                    materiais.map(m => `<option value="${m.id}">${m.nome} (${m.codigo || 'sem codigo'})</option>`).join('');
+
+                document.getElementById('subproduto_id').innerHTML =
+                    produtos.map(p => `<option value="${p.id}">${p.nome} (${p.sku || 'sem sku'})</option>`).join('');
+
+                document.getElementById('servico_id').innerHTML =
+                    servicos.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+
+                carregarBOM();
+            } catch (error) {
+                console.error(error);
+                mostrarErro('Erro ao carregar dados');
+            }
+        }
+
+        async function carregarBOM() {
+            try {
+                bomLinhas = await api.get(`/produtos/${produtoId}/bom`);
+                renderizarTabela();
+            } catch (error) {
+                mostrarErro('Erro ao carregar BOM');
+            }
+        }
+
+        function renderizarTabela() {
+            const matCount = bomLinhas.filter(b => b.tipo === 'material').length;
+            const subCount = bomLinhas.filter(b => b.tipo === 'subproduto').length;
+            const servCount = bomLinhas.filter(b => b.tipo === 'servico_externo').length;
+
+            document.getElementById('total-materiais').textContent = matCount;
+            document.getElementById('total-subprodutos').textContent = subCount;
+            document.getElementById('total-servicos').textContent = servCount;
+
+            const tbody = document.getElementById('bom-table');
+            if (bomLinhas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">BOM vazia - adicione itens</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = bomLinhas.map(b => {
+                const tipoClass = b.tipo === 'material' ? 'bg-primary' : b.tipo === 'subproduto' ? 'bg-info' : 'bg-warning text-dark';
+                const nome = b.material_nome || b.subproduto_nome || b.servico_nome;
+                const codigo = b.material_codigo || b.subproduto_sku || '';
+                return `
+                    <tr>
+                        <td><span class="badge ${tipoClass}">${b.tipo}</span></td>
+                        <td>${nome} ${codigo ? `<code class="ms-1">${codigo}</code>` : ''}</td>
+                        <td>${b.quantidade} ${b.unidade || b.material_unidade || ''}</td>
+                        <td>${b.tolerancia ? b.tolerancia + '%' : '-'}</td>
+                        <td>${b.notas || '-'}</td>
+                        <td class="table-actions">
+                            <button class="btn btn-sm btn-outline-light" onclick="editarLinha(${b.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="eliminarLinha(${b.id})"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function atualizarDropdown() {
+            const tipo = document.getElementById('tipo').value;
+            document.getElementById('div-material').classList.toggle('d-none', tipo !== 'material');
+            document.getElementById('div-subproduto').classList.toggle('d-none', tipo !== 'subproduto');
+            document.getElementById('div-servico').classList.toggle('d-none', tipo !== 'servico_externo');
+        }
+
+        function novaLinha() {
+            document.getElementById('modal-titulo').textContent = 'Adicionar Item';
+            document.getElementById('bom-id').value = '';
+            document.getElementById('bom-form').reset();
+            document.getElementById('tipo').value = 'material';
+            atualizarDropdown();
+            abrirModal('bom-modal');
+        }
+
+        function editarLinha(id) {
+            const linha = bomLinhas.find(b => b.id === id);
+            if (!linha) return;
+
+            document.getElementById('modal-titulo').textContent = 'Editar Item';
+            document.getElementById('bom-id').value = linha.id;
+            document.getElementById('tipo').value = linha.tipo;
+            document.getElementById('quantidade').value = linha.quantidade;
+            document.getElementById('unidade').value = linha.unidade || '';
+            document.getElementById('tolerancia').value = linha.tolerancia || 0;
+            document.getElementById('notas').value = linha.notas || '';
+
+            if (linha.tipo === 'material') document.getElementById('material_id').value = linha.material_id;
+            if (linha.tipo === 'subproduto') document.getElementById('subproduto_id').value = linha.subproduto_id;
+            if (linha.tipo === 'servico_externo') document.getElementById('servico_id').value = linha.servico_id;
+
+            atualizarDropdown();
+            abrirModal('bom-modal');
+        }
+
+        async function guardarLinha() {
+            const id = document.getElementById('bom-id').value;
+            const tipo = document.getElementById('tipo').value;
+
+            const data = {
+                produto_id: produtoId,
+                tipo: tipo,
+                quantidade: parseFloat(document.getElementById('quantidade').value),
+                unidade: document.getElementById('unidade').value || null,
+                tolerancia: parseFloat(document.getElementById('tolerancia').value) || 0,
+                notas: document.getElementById('notas').value || null
+            };
+
+            if (tipo === 'material') data.material_id = document.getElementById('material_id').value;
+            if (tipo === 'subproduto') data.subproduto_id = document.getElementById('subproduto_id').value;
+            if (tipo === 'servico_externo') data.servico_id = document.getElementById('servico_id').value;
+
+            try {
+                if (id) {
+                    await api.put(`/bom/${id}`, data);
+                    mostrarSucesso('Item atualizado');
+                } else {
+                    await api.post('/bom', data);
+                    mostrarSucesso('Item adicionado');
+                }
+                fecharModal('bom-modal');
+                carregarBOM();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function eliminarLinha(id) {
+            if (!await confirmar('Remover este item da BOM?')) return;
+            try {
+                await api.delete(`/bom/${id}`);
+                mostrarSucesso('Item removido');
+                carregarBOM();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function calcularCusto() {
+            try {
+                const custo = await api.get(`/produtos/${produtoId}/custo`);
+                document.getElementById('custo-total').textContent = formatarMoeda(custo.total);
+                mostrarSucesso(`Custo calculado: Materiais ${formatarMoeda(custo.materiais)} + Servicos ${formatarMoeda(custo.servicos)}`);
+            } catch (error) {
+                mostrarErro('Erro ao calcular custo');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarDados);
+    </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordens de Producao - ProduFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard"><i class="fas fa-industry me-2"></i>ProduFlow</a>
+            <div class="d-flex align-items-center ms-auto">
+                <a href="#" class="btn btn-link text-light position-relative me-3"><i class="fas fa-bell"></i><span class="badge bg-danger rounded-pill" id="alertas-badge" style="display: none;">0</span></a>
+                <div class="dropdown">
+                    <button class="btn btn-link text-light dropdown-toggle text-decoration-none" type="button" data-bs-toggle="dropdown"><i class="fas fa-user-circle me-1"></i><span id="user-nome">Utilizador</span></button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark"><li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li></ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper">
+        <nav class="sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li class="sidebar-heading">Catalogo</li>
+                <li class="nav-item"><a class="nav-link" href="/categorias"><i class="fas fa-tags"></i> Categorias</a></li>
+                <li class="nav-item"><a class="nav-link" href="/produtos"><i class="fas fa-boxes"></i> Produtos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/servicos"><i class="fas fa-truck"></i> Servicos Externos</a></li>
+                <li class="sidebar-heading">Stock</li>
+                <li class="nav-item"><a class="nav-link" href="/fornecedores"><i class="fas fa-building"></i> Fornecedores</a></li>
+                <li class="nav-item"><a class="nav-link" href="/materias"><i class="fas fa-cubes"></i> Materias-Primas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/stock"><i class="fas fa-warehouse"></i> Stock</a></li>
+                <li class="sidebar-heading">Producao</li>
+                <li class="nav-item"><a class="nav-link" href="/estacoes"><i class="fas fa-toolbox"></i> Estacoes</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/ordens"><i class="fas fa-clipboard-list"></i> Ordens</a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Ordens de Producao</h1>
+                <a href="/ordens/nova" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Nova Ordem</a>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <select class="form-select" id="filtro-estado" onchange="carregarOrdens()">
+                        <option value="ativas">Ativas</option>
+                        <option value="">Todas</option>
+                        <option value="pendente">Pendentes</option>
+                        <option value="em_producao">Em Producao</option>
+                        <option value="aguarda_externo">Aguarda Externo</option>
+                        <option value="concluida">Concluidas</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="filtro-pesquisa" placeholder="Pesquisar..." oninput="filtrarOrdens()">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Ordem</th>
+                                    <th>Produto</th>
+                                    <th>Qty</th>
+                                    <th>Cliente</th>
+                                    <th>Estado</th>
+                                    <th>Estacao</th>
+                                    <th>Prazo</th>
+                                    <th width="150">Acoes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordens-table">
+                                <tr><td colspan="8" class="text-center text-muted py-4">A carregar...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        let ordens = [];
+
+        async function carregarOrdens() {
+            try {
+                const estado = document.getElementById('filtro-estado').value;
+                const url = estado ? `/ordens?estado=${estado}` : '/ordens';
+                ordens = await api.get(url);
+                renderizarTabela();
+            } catch (error) {
+                mostrarErro('Erro ao carregar ordens');
+            }
+        }
+
+        function filtrarOrdens() {
+            renderizarTabela();
+        }
+
+        function renderizarTabela() {
+            const pesquisa = document.getElementById('filtro-pesquisa').value.toLowerCase();
+            const filtradas = ordens.filter(o =>
+                o.numero.toLowerCase().includes(pesquisa) ||
+                o.produto_nome.toLowerCase().includes(pesquisa) ||
+                (o.cliente_nome && o.cliente_nome.toLowerCase().includes(pesquisa))
+            );
+
+            const tbody = document.getElementById('ordens-table');
+            if (filtradas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Nenhuma ordem encontrada</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtradas.map(o => {
+                const estadoClass = o.estado === 'concluida' ? 'bg-success' :
+                                   o.estado === 'em_producao' ? 'bg-info' :
+                                   o.estado === 'aguarda_externo' ? 'bg-warning text-dark' : 'bg-secondary';
+                const prazoClass = o.dias_para_entrega < 0 ? 'text-danger fw-bold' :
+                                  o.dias_para_entrega <= 2 ? 'text-warning' : '';
+                return `
+                    <tr class="border-prioridade-${o.prioridade}">
+                        <td><a href="/ordens/${o.id}" class="text-light fw-bold">${o.numero}</a></td>
+                        <td>${o.produto_nome} <code class="ms-1">${o.produto_sku || ''}</code></td>
+                        <td>${o.quantidade}</td>
+                        <td>${o.cliente_nome || '-'}</td>
+                        <td><span class="badge ${estadoClass}">${o.estado.replace('_', ' ')}</span></td>
+                        <td>
+                            ${o.estacao_atual ?
+                                `<span class="badge" style="background-color: ${o.estacao_cor}">${o.estacao_atual}</span>` :
+                                '-'
+                            }
+                        </td>
+                        <td class="${prazoClass}">
+                            ${o.data_prevista ? formatarData(o.data_prevista) : '-'}
+                            ${o.dias_para_entrega < 0 ? ' <i class="fas fa-exclamation-triangle"></i>' : ''}
+                        </td>
+                        <td class="table-actions">
+                            <a href="/ordens/${o.id}" class="btn btn-sm btn-outline-light"><i class="fas fa-eye"></i></a>
+                            ${o.estado === 'pendente' ? `
+                                <button class="btn btn-sm btn-success" onclick="iniciarOrdem(${o.id})" title="Iniciar"><i class="fas fa-play"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdem(${o.id})"><i class="fas fa-trash"></i></button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function iniciarOrdem(id) {
+            try {
+                await api.post(`/ordens/${id}/iniciar`);
+                mostrarSucesso('Producao iniciada');
+                carregarOrdens();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function eliminarOrdem(id) {
+            if (!await confirmar('Eliminar esta ordem?')) return;
+            try {
+                await api.delete(`/ordens/${id}`);
+                mostrarSucesso('Ordem eliminada');
+                carregarOrdens();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarOrdens);
+    </script>
+</body>
+</html>

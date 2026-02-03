@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ProduFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-industry me-2"></i>ProduFlow
+            </a>
+            <div class="d-flex align-items-center ms-auto">
+                <a href="#" class="btn btn-link text-light position-relative me-3" onclick="mostrarAlertas()">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge bg-danger rounded-pill" id="alertas-badge" style="display: none;">0</span>
+                </a>
+                <div class="dropdown">
+                    <button class="btn btn-link text-light dropdown-toggle text-decoration-none" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        <span id="user-nome">Utilizador</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                        <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/dashboard">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li class="sidebar-heading">Catalogo</li>
+                <li class="nav-item"><a class="nav-link" href="/categorias"><i class="fas fa-tags"></i> Categorias</a></li>
+                <li class="nav-item"><a class="nav-link" href="/produtos"><i class="fas fa-boxes"></i> Produtos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/servicos"><i class="fas fa-truck"></i> Servicos Externos</a></li>
+                <li class="sidebar-heading">Stock</li>
+                <li class="nav-item"><a class="nav-link" href="/fornecedores"><i class="fas fa-building"></i> Fornecedores</a></li>
+                <li class="nav-item"><a class="nav-link" href="/materias"><i class="fas fa-cubes"></i> Materias-Primas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/stock"><i class="fas fa-warehouse"></i> Stock</a></li>
+                <li class="sidebar-heading">Producao</li>
+                <li class="nav-item"><a class="nav-link" href="/estacoes"><i class="fas fa-toolbox"></i> Estacoes</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ordens"><i class="fas fa-clipboard-list"></i> Ordens</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Dashboard</h1>
+                <a href="/ordens/nova" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Nova Ordem
+                </a>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card stat-info">
+                        <div class="stat-number" id="stat-producao">0</div>
+                        <div class="stat-label">Em Producao</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card stat-danger">
+                        <div class="stat-number" id="stat-urgentes">0</div>
+                        <div class="stat-label">Urgentes</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card stat-warning">
+                        <div class="stat-number" id="stat-atrasadas">0</div>
+                        <div class="stat-label">Atrasadas</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="stat-number" id="stat-externo">0</div>
+                        <div class="stat-label">Aguarda Externo</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Alertas -->
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-exclamation-triangle me-2"></i>Alertas</span>
+                            <a href="#" class="btn btn-sm btn-outline-light" onclick="marcarTodosVistos()">Limpar</a>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="alertas-lista" class="list-group list-group-flush">
+                                <div class="list-group-item text-muted text-center py-4">
+                                    A carregar...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ordens em Producao -->
+                <div class="col-md-8 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-clipboard-list me-2"></i>Ordens em Producao</span>
+                            <a href="/ordens" class="btn btn-sm btn-outline-light">Ver Todas</a>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Ordem</th>
+                                            <th>Produto</th>
+                                            <th>Qty</th>
+                                            <th>Estacao</th>
+                                            <th>Prazo</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ordens-table">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">A carregar...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock com Problemas -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-warehouse me-2"></i>Stock com Problemas
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Codigo</th>
+                                            <th>Material</th>
+                                            <th>Stock Atual</th>
+                                            <th>Minimo</th>
+                                            <th>Estado</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stock-table">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">A carregar...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        // Carregar dados do dashboard
+        async function carregarDashboard() {
+            try {
+                // Stats
+                const stats = await api.get('/dashboard/stats');
+                document.getElementById('stat-producao').textContent = stats.em_producao;
+                document.getElementById('stat-urgentes').textContent = stats.urgentes;
+                document.getElementById('stat-atrasadas').textContent = stats.atrasadas;
+                document.getElementById('stat-externo').textContent = stats.aguarda_externo;
+
+                // Alertas
+                carregarAlertas();
+
+                // Ordens em producao
+                carregarOrdens();
+
+                // Stock problemas
+                carregarStockProblemas();
+
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        async function carregarAlertas() {
+            try {
+                const alertas = await api.get('/dashboard/alertas');
+                const lista = document.getElementById('alertas-lista');
+
+                if (alertas.length === 0) {
+                    lista.innerHTML = `
+                        <div class="list-group-item text-muted text-center py-4">
+                            <i class="fas fa-check-circle me-2"></i>Sem alertas
+                        </div>
+                    `;
+                    return;
+                }
+
+                lista.innerHTML = alertas.map(a => `
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start ${a.tipo.includes('negativo') ? 'alert-stock-negativo' : 'alert-stock-baixo'}">
+                        <div>
+                            <i class="fas ${a.tipo.includes('negativo') ? 'fa-times-circle text-danger' : 'fa-exclamation-circle text-warning'} me-2"></i>
+                            <small>${a.mensagem}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="marcarAlertaVisto(${a.id})">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar alertas:', error);
+            }
+        }
+
+        async function carregarOrdens() {
+            try {
+                const ordens = await api.get('/dashboard/ordens');
+                const tbody = document.getElementById('ordens-table');
+
+                if (ordens.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Nenhuma ordem em producao</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = ordens.map(o => `
+                    <tr class="border-prioridade-${o.prioridade}">
+                        <td><a href="/ordens/${o.id}" class="text-light">${o.numero}</a></td>
+                        <td>${o.produto_nome}</td>
+                        <td>${o.quantidade}</td>
+                        <td>
+                            ${o.estacao_atual ?
+                                `<span class="badge" style="background-color: ${o.estacao_cor}">${o.estacao_atual}</span>` :
+                                `<span class="badge bg-secondary">${o.estado === 'aguarda_externo' ? 'Aguarda Externo' : 'Pendente'}</span>`
+                            }
+                        </td>
+                        <td class="${o.dias_para_entrega < 0 ? 'text-danger' : o.dias_para_entrega <= 2 ? 'text-warning' : ''}">
+                            ${o.data_prevista ? formatarData(o.data_prevista) : '-'}
+                            ${o.dias_para_entrega < 0 ? '<i class="fas fa-exclamation-triangle ms-1"></i>' : ''}
+                        </td>
+                        <td>
+                            <a href="/ordens/${o.id}" class="btn btn-sm btn-outline-light">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar ordens:', error);
+            }
+        }
+
+        async function carregarStockProblemas() {
+            try {
+                const stock = await api.get('/dashboard/stock-problemas');
+                const tbody = document.getElementById('stock-table');
+
+                if (stock.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="fas fa-check-circle me-2"></i>Stock em ordem
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = stock.map(s => `
+                    <tr>
+                        <td><code>${s.codigo || '-'}</code></td>
+                        <td>${s.nome}</td>
+                        <td class="${s.problema === 'negativo' ? 'text-danger fw-bold' : 'text-warning'}">
+                            ${s.quantidade} ${s.unidade}
+                        </td>
+                        <td>${s.stock_minimo} ${s.unidade}</td>
+                        <td>
+                            <span class="badge ${s.problema === 'negativo' ? 'bg-danger' : 'bg-warning text-dark'}">
+                                ${s.problema === 'negativo' ? 'Negativo' : 'Baixo'}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="/stock" class="btn btn-sm btn-outline-light">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar stock:', error);
+            }
+        }
+
+        async function marcarAlertaVisto(id) {
+            try {
+                await api.put(`/alertas/${id}/visto`);
+                carregarAlertas();
+                carregarContagemAlertas();
+            } catch (error) {
+                mostrarErro('Erro ao marcar alerta');
+            }
+        }
+
+        async function marcarTodosVistos() {
+            try {
+                await api.put('/alertas/marcar-todos');
+                carregarAlertas();
+                carregarContagemAlertas();
+            } catch (error) {
+                mostrarErro('Erro ao limpar alertas');
+            }
+        }
+
+        // Carregar nome do utilizador
+        async function carregarUser() {
+            try {
+                const user = await api.get('/auth/me');
+                document.getElementById('user-nome').textContent = user.nome;
+            } catch (error) {
+                console.error('Erro ao carregar utilizador:', error);
+            }
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarUser();
+            carregarDashboard();
+            // Atualizar a cada 30 segundos
+            setInterval(carregarDashboard, 30000);
+        });
+    </script>
+</body>
+</html>
