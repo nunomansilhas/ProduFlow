@@ -58,6 +58,29 @@
             padding: 0.25rem 0.5rem;
             font-size: 0.75rem;
         }
+        .servico-item {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            background: rgba(255,255,255,0.03);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--bs-info);
+        }
+        .servico-item.disabled {
+            opacity: 0.4;
+            border-left-color: var(--bs-secondary);
+        }
+        .servico-item .servico-info {
+            flex: 1;
+        }
+        .servico-item .servico-nome {
+            font-weight: 500;
+        }
+        .servico-item .servico-fornecedor {
+            font-size: 0.8rem;
+            color: var(--bs-secondary);
+        }
     </style>
 </head>
 <body>
@@ -162,6 +185,16 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mb-4" id="card-servicos" style="display: none;">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-truck me-2"></i>Servicos Externos</span>
+                            <small class="text-muted">Clique para remover</small>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="servicos-container" class="p-3"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -180,6 +213,7 @@
         let produtos = [];
         let todasEstacoes = [];
         let estacoesOrdem = []; // Ordem personalizada das estações
+        let servicosOrdem = []; // Serviços externos selecionados
 
         async function carregarDados() {
             try {
@@ -227,6 +261,76 @@
             }
 
             renderizarEstacoes();
+
+            // Carregar também os serviços externos do produto
+            carregarServicosProduto(produtoId);
+        }
+
+        async function carregarServicosProduto(produtoId) {
+            const card = document.getElementById('card-servicos');
+            const container = document.getElementById('servicos-container');
+
+            if (!produtoId) {
+                card.style.display = 'none';
+                servicosOrdem = [];
+                return;
+            }
+
+            try {
+                // Buscar serviços externos do BOM do produto
+                const servicos = await api.get(`/produtos/${produtoId}/bom?tipo=servico_externo`);
+
+                if (!servicos || servicos.length === 0) {
+                    card.style.display = 'none';
+                    servicosOrdem = [];
+                    return;
+                }
+
+                // Mapear serviços com info adicional
+                servicosOrdem = servicos.map(s => ({
+                    id: s.servico_id,
+                    nome: s.servico_nome || s.nome,
+                    fornecedor: s.fornecedor_nome || '-',
+                    ativo: true
+                }));
+
+                card.style.display = 'block';
+                renderizarServicos();
+            } catch (error) {
+                console.log('Sem serviços externos:', error);
+                card.style.display = 'none';
+                servicosOrdem = [];
+            }
+        }
+
+        function renderizarServicos() {
+            const container = document.getElementById('servicos-container');
+
+            if (servicosOrdem.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">Nenhum serviço externo</p>';
+                return;
+            }
+
+            container.innerHTML = servicosOrdem.map(s => `
+                <div class="servico-item ${!s.ativo ? 'disabled' : ''}" data-id="${s.id}">
+                    <div class="servico-info">
+                        <div class="servico-nome"><i class="fas fa-truck me-2"></i>${s.nome}</div>
+                        <div class="servico-fornecedor">${s.fornecedor}</div>
+                    </div>
+                    <button type="button" class="btn btn-sm ${s.ativo ? 'btn-outline-danger' : 'btn-outline-success'}"
+                        onclick="toggleServico(${s.id})">
+                        <i class="fas ${s.ativo ? 'fa-times' : 'fa-plus'}"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function toggleServico(servicoId) {
+            const servico = servicosOrdem.find(s => s.id === servicoId);
+            if (servico) {
+                servico.ativo = !servico.ativo;
+                renderizarServicos();
+            }
         }
 
         function renderizarEstacoes() {
@@ -397,6 +501,9 @@
                 return;
             }
 
+            // Filtrar serviços ativos
+            const servicosAtivos = servicosOrdem.filter(s => s.ativo).map(s => s.id);
+
             const data = {
                 produto_id: document.getElementById('produto_id').value,
                 quantidade: parseInt(document.getElementById('quantidade').value),
@@ -404,7 +511,8 @@
                 cliente_nome: document.getElementById('cliente_nome').value || null,
                 data_prevista: document.getElementById('data_prevista').value || null,
                 notas: document.getElementById('notas').value || null,
-                estacoes: estacoesAtivas // Ordem personalizada das estações
+                estacoes: estacoesAtivas, // Ordem personalizada das estações
+                servicos: servicosAtivos  // Serviços externos selecionados
             };
 
             if (!data.produto_id || !data.quantidade) {

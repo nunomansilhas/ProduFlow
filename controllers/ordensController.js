@@ -137,7 +137,7 @@ exports.obter = async (req, res) => {
 // Criar ordem
 exports.criar = async (req, res) => {
     try {
-        const { produto_id, quantidade, cliente_id, cliente_nome, data_prevista, prioridade, notas, estacoes: customEstacoes } = req.body;
+        const { produto_id, quantidade, cliente_id, cliente_nome, data_prevista, prioridade, notas, estacoes: customEstacoes, servicos: customServicos } = req.body;
 
         if (!produto_id || !quantidade) {
             return res.status(400).json({ error: 'produto_id e quantidade são obrigatórios' });
@@ -228,17 +228,30 @@ exports.criar = async (req, res) => {
         }
 
         // Criar registos de serviços externos
-        const [servicos] = await db.query(`
-            SELECT DISTINCT servico_id FROM bom_linhas
-            WHERE produto_id = ? AND tipo = 'servico_externo'
-        `, [produto_id]);
+        // Prioridade: 1) Array customizado enviado pelo utilizador, 2) Serviços do BOM do produto
+        if (customServicos && Array.isArray(customServicos) && customServicos.length > 0) {
+            // Usar serviços selecionados pelo utilizador
+            for (const servicoId of customServicos) {
+                await db.query(
+                    `INSERT INTO ordem_servicos (ordem_id, servico_id) VALUES (?, ?)`,
+                    [ordem_id, servicoId]
+                );
+            }
+        } else if (!customServicos) {
+            // Sem array de serviços enviado - usar do BOM
+            const [servicos] = await db.query(`
+                SELECT DISTINCT servico_id FROM bom_linhas
+                WHERE produto_id = ? AND tipo = 'servico_externo'
+            `, [produto_id]);
 
-        for (const serv of servicos) {
-            await db.query(
-                `INSERT INTO ordem_servicos (ordem_id, servico_id) VALUES (?, ?)`,
-                [ordem_id, serv.servico_id]
-            );
+            for (const serv of servicos) {
+                await db.query(
+                    `INSERT INTO ordem_servicos (ordem_id, servico_id) VALUES (?, ?)`,
+                    [ordem_id, serv.servico_id]
+                );
+            }
         }
+        // Se customServicos é array vazio, não adiciona nenhum serviço
 
         // Criar alertas
         for (const alerta of alertas) {

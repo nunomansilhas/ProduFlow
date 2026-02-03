@@ -9,8 +9,9 @@ const bomCalculator = require('../utils/bomCalculator');
 exports.listar = async (req, res) => {
     try {
         const { produto_id } = req.params;
+        const { tipo } = req.query;
 
-        const [rows] = await db.query(`
+        let query = `
             SELECT b.*,
                    m.nome AS material_nome,
                    m.codigo AS material_codigo,
@@ -19,14 +20,26 @@ exports.listar = async (req, res) => {
                    p.nome AS subproduto_nome,
                    p.sku AS subproduto_sku,
                    s.nome AS servico_nome,
-                   s.preco_estimado AS servico_preco
+                   s.preco_estimado AS servico_preco,
+                   f.nome AS fornecedor_nome
             FROM bom_linhas b
             LEFT JOIN materias_primas m ON b.material_id = m.id
             LEFT JOIN produtos p ON b.subproduto_id = p.id
             LEFT JOIN servicos_externos s ON b.servico_id = s.id
+            LEFT JOIN fornecedores f ON s.fornecedor_id = f.id
             WHERE b.produto_id = ?
-            ORDER BY b.tipo, b.id
-        `, [produto_id]);
+        `;
+        const params = [produto_id];
+
+        // Filtrar por tipo se especificado
+        if (tipo) {
+            query += ' AND b.tipo = ?';
+            params.push(tipo);
+        }
+
+        query += ' ORDER BY b.tipo, b.id';
+
+        const [rows] = await db.query(query, params);
 
         res.json(rows);
     } catch (error) {
