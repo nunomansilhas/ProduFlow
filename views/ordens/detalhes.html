@@ -93,6 +93,29 @@
                 </div>
             </div>
 
+            <!-- Serviços Externos -->
+            <div class="card mb-4" id="card-servicos" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-truck me-2"></i>Serviços Externos</span>
+                    <span class="badge bg-warning text-dark" id="servicos-pendentes-badge"></span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Serviço</th>
+                                    <th>Fornecedor</th>
+                                    <th>Estado</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="servicos-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Notas -->
             <div class="card mb-4" id="card-notas" style="display: none;">
                 <div class="card-header">Notas</div>
@@ -244,6 +267,9 @@
                 // Materiais
                 renderizarMateriais();
 
+                // Serviços Externos
+                renderizarServicos();
+
                 // Acoes
                 renderizarAcoes();
 
@@ -316,6 +342,70 @@
             }).join('');
         }
 
+        function renderizarServicos() {
+            const card = document.getElementById('card-servicos');
+            const tbody = document.getElementById('servicos-table');
+            const badge = document.getElementById('servicos-pendentes-badge');
+
+            if (!ordem.servicos || ordem.servicos.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            const pendentes = ordem.servicos.filter(s => s.estado !== 'recebido').length;
+            badge.textContent = pendentes > 0 ? `${pendentes} pendente${pendentes > 1 ? 's' : ''}` : 'Todos recebidos';
+            badge.className = pendentes > 0 ? 'badge bg-warning text-dark' : 'badge bg-success';
+
+            tbody.innerHTML = ordem.servicos.map(s => {
+                const estadoBadge = s.estado === 'recebido' ? '<span class="badge bg-success">Recebido</span>' :
+                                   s.estado === 'enviado' ? '<span class="badge bg-info">Enviado</span>' :
+                                   '<span class="badge bg-secondary">Pendente</span>';
+                return `
+                    <tr>
+                        <td>${s.nome}</td>
+                        <td>${s.fornecedor_nome || '-'}</td>
+                        <td>${estadoBadge}</td>
+                        <td>
+                            ${s.estado === 'pendente' ? `
+                                <button class="btn btn-sm btn-info" onclick="marcarServicoEnviado(${s.id})">
+                                    <i class="fas fa-paper-plane me-1"></i>Enviar
+                                </button>
+                            ` : ''}
+                            ${s.estado === 'enviado' ? `
+                                <button class="btn btn-sm btn-success" onclick="marcarServicoRecebido(${s.id})">
+                                    <i class="fas fa-check me-1"></i>Recebido
+                                </button>
+                            ` : ''}
+                            ${s.estado === 'recebido' ? `
+                                <i class="fas fa-check-circle text-success"></i>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function marcarServicoEnviado(servicoId) {
+            try {
+                await api.put(`/ordens/${ordemId}/servicos/${servicoId}`, { estado: 'enviado' });
+                mostrarSucesso('Serviço marcado como enviado');
+                carregarOrdem();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function marcarServicoRecebido(servicoId) {
+            try {
+                await api.put(`/ordens/${ordemId}/servicos/${servicoId}`, { estado: 'recebido' });
+                mostrarSucesso('Serviço marcado como recebido');
+                carregarOrdem();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
         function renderizarAcoes() {
             const container = document.getElementById('acoes-ordem');
             let html = '';
@@ -329,9 +419,31 @@
                         <i class="fas fa-trash me-2"></i>Eliminar
                     </button>
                 `;
+            } else if (ordem.estado === 'aguarda_externo') {
+                // Verificar se todos os serviços foram recebidos
+                const todosRecebidos = ordem.servicos && ordem.servicos.every(s => s.estado === 'recebido');
+                if (todosRecebidos) {
+                    html = `
+                        <button class="btn btn-success" onclick="concluirOrdem()">
+                            <i class="fas fa-check me-2"></i>Concluir Ordem
+                        </button>
+                    `;
+                } else {
+                    html = `<span class="text-warning"><i class="fas fa-clock me-2"></i>Aguardando serviços externos</span>`;
+                }
             }
 
             container.innerHTML = html;
+        }
+
+        async function concluirOrdem() {
+            try {
+                await api.post(`/ordens/${ordemId}/concluir`);
+                mostrarSucesso('Ordem concluída');
+                carregarOrdem();
+            } catch (error) {
+                mostrarErro(error.message);
+            }
         }
 
         async function iniciarOrdem() {

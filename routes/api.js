@@ -135,6 +135,8 @@ router.delete('/ordens/:id', ordensController.eliminar);
 router.post('/ordens/:id/iniciar', ordensController.iniciarProducao);
 router.post('/ordens/:id/avancar', ordensController.avancarEstacao);
 router.post('/ordens/:id/saltar', ordensController.saltarEstacao);
+router.put('/ordens/:id/servicos/:servicoId', ordensController.atualizarServico);
+router.post('/ordens/:id/concluir', ordensController.concluirOrdemManual);
 
 // ============================================
 // ALERTAS

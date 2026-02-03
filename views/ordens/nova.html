@@ -7,6 +7,58 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="/css/style.css" rel="stylesheet">
+    <style>
+        .estacao-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(255,255,255,0.03);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: grab;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .estacao-item:hover {
+            background: rgba(255,255,255,0.06);
+        }
+        .estacao-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .estacao-item.drag-over {
+            border-color: var(--bs-primary);
+            background: rgba(13, 110, 253, 0.1);
+        }
+        .estacao-item .handle {
+            margin-right: 0.75rem;
+            color: var(--bs-secondary);
+        }
+        .estacao-item .estacao-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+            font-size: 0.9rem;
+        }
+        .estacao-item .estacao-nome {
+            flex: 1;
+        }
+        .estacao-item .estacao-ordem {
+            font-size: 0.8rem;
+            color: var(--bs-secondary);
+            margin-left: auto;
+            min-width: 30px;
+            text-align: center;
+        }
+        .estacao-item .btn-toggle {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top border-bottom">
@@ -98,6 +150,18 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-route me-2"></i>Fluxo de Producao</span>
+                            <small class="text-muted">Arraste para reordenar</small>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="estacoes-container" class="p-3 text-center text-muted">
+                                Selecione um produto para ver as estacoes
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -114,22 +178,170 @@
     <script src="/js/main.js"></script>
     <script>
         let produtos = [];
+        let todasEstacoes = [];
+        let estacoesOrdem = []; // Ordem personalizada das estações
 
         async function carregarDados() {
             try {
                 produtos = await api.get('/produtos?ativo=true');
+                todasEstacoes = await api.get('/estacoes?ativa=true');
+
                 document.getElementById('produto_id').innerHTML =
                     '<option value="">Selecionar produto...</option>' +
                     produtos.map(p => `<option value="${p.id}">${p.nome} (${p.sku || 'sem SKU'})</option>`).join('');
             } catch (error) {
-                mostrarErro('Erro ao carregar produtos');
+                mostrarErro('Erro ao carregar dados');
             }
+        }
+
+        async function carregarEstacoesProduto() {
+            const produtoId = document.getElementById('produto_id').value;
+            const container = document.getElementById('estacoes-container');
+
+            if (!produtoId) {
+                container.innerHTML = '<p class="text-muted text-center">Selecione um produto para ver as estações</p>';
+                estacoesOrdem = [];
+                return;
+            }
+
+            const produto = produtos.find(p => p.id == produtoId);
+
+            if (produto && produto.estacoes && produto.estacoes.length > 0) {
+                // Usar estações do produto
+                estacoesOrdem = produto.estacoes.map(e => ({
+                    id: e.estacao_id,
+                    nome: e.nome,
+                    icone: e.icone,
+                    cor: e.cor,
+                    ativo: true
+                }));
+            } else {
+                // Usar todas as estações ativas por defeito
+                estacoesOrdem = todasEstacoes.map(e => ({
+                    id: e.id,
+                    nome: e.nome,
+                    icone: e.icone,
+                    cor: e.cor,
+                    ativo: true
+                }));
+            }
+
+            renderizarEstacoes();
+        }
+
+        function renderizarEstacoes() {
+            const container = document.getElementById('estacoes-container');
+
+            if (estacoesOrdem.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">Nenhuma estação configurada</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div id="estacoes-list">
+                    ${estacoesOrdem.map((e, idx) => `
+                        <div class="estacao-item ${!e.ativo ? 'opacity-50' : ''}" data-id="${e.id}" draggable="true">
+                            <span class="handle"><i class="fas fa-grip-vertical"></i></span>
+                            <div class="estacao-icon" style="background: ${e.cor || '#6c757d'}">
+                                <i class="fas ${e.icone || 'fa-cog'}"></i>
+                            </div>
+                            <span class="estacao-nome">${e.nome}</span>
+                            <span class="estacao-ordem">${idx + 1}</span>
+                            <button type="button" class="btn btn-sm ${e.ativo ? 'btn-outline-danger' : 'btn-outline-success'} btn-toggle ms-2"
+                                onclick="toggleEstacao(${e.id})">
+                                <i class="fas ${e.ativo ? 'fa-times' : 'fa-plus'}"></i>
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+                <small class="text-muted d-block mt-2 text-center">Clique em <i class="fas fa-times text-danger"></i> para remover uma estação do fluxo</small>
+            `;
+
+            initDragDrop();
+        }
+
+        function toggleEstacao(estacaoId) {
+            const estacao = estacoesOrdem.find(e => e.id === estacaoId);
+            if (estacao) {
+                estacao.ativo = !estacao.ativo;
+                renderizarEstacoes();
+            }
+        }
+
+        function initDragDrop() {
+            const items = document.querySelectorAll('.estacao-item');
+            let draggedItem = null;
+
+            items.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    item.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                    draggedItem = null;
+                    items.forEach(i => i.classList.remove('drag-over'));
+                    updateOrdemFromDOM();
+                });
+
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (draggedItem && draggedItem !== item) {
+                        item.classList.add('drag-over');
+                    }
+                });
+
+                item.addEventListener('dragleave', () => {
+                    item.classList.remove('drag-over');
+                });
+
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    if (draggedItem && draggedItem !== item) {
+                        const list = document.getElementById('estacoes-list');
+                        const allItems = [...list.querySelectorAll('.estacao-item')];
+                        const fromIdx = allItems.indexOf(draggedItem);
+                        const toIdx = allItems.indexOf(item);
+
+                        if (fromIdx < toIdx) {
+                            item.parentNode.insertBefore(draggedItem, item.nextSibling);
+                        } else {
+                            item.parentNode.insertBefore(draggedItem, item);
+                        }
+
+                        updateOrdemFromDOM();
+                    }
+                });
+            });
+        }
+
+        function updateOrdemFromDOM() {
+            const items = document.querySelectorAll('.estacao-item');
+            const novaOrdem = [];
+
+            items.forEach((item, idx) => {
+                const id = parseInt(item.dataset.id);
+                const estacao = estacoesOrdem.find(e => e.id === id);
+                if (estacao) {
+                    novaOrdem.push(estacao);
+                }
+                item.querySelector('.estacao-ordem').textContent = idx + 1;
+            });
+
+            estacoesOrdem = novaOrdem;
         }
 
         async function verificarStock() {
             const produtoId = document.getElementById('produto_id').value;
             const quantidade = parseInt(document.getElementById('quantidade').value) || 1;
             const container = document.getElementById('stock-verificacao');
+
+            // Também carregar estações quando o produto muda
+            carregarEstacoesProduto();
 
             if (!produtoId) {
                 container.innerHTML = '<p class="text-muted text-center p-3">Selecione um produto para verificar o stock</p>';
@@ -177,17 +389,26 @@
         }
 
         async function criarOrdem() {
+            // Filtrar apenas estações ativas e obter seus IDs na ordem
+            const estacoesAtivas = estacoesOrdem.filter(e => e.ativo).map(e => e.id);
+
+            if (estacoesAtivas.length === 0) {
+                mostrarErro('Selecione pelo menos uma estação para o fluxo de produção');
+                return;
+            }
+
             const data = {
                 produto_id: document.getElementById('produto_id').value,
                 quantidade: parseInt(document.getElementById('quantidade').value),
                 prioridade: parseInt(document.getElementById('prioridade').value),
                 cliente_nome: document.getElementById('cliente_nome').value || null,
                 data_prevista: document.getElementById('data_prevista').value || null,
-                notas: document.getElementById('notas').value || null
+                notas: document.getElementById('notas').value || null,
+                estacoes: estacoesAtivas // Ordem personalizada das estações
             };
 
             if (!data.produto_id || !data.quantidade) {
-                mostrarErro('Produto e quantidade sao obrigatorios');
+                mostrarErro('Produto e quantidade são obrigatórios');
                 return;
             }
 

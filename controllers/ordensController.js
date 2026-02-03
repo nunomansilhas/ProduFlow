@@ -137,7 +137,7 @@ exports.obter = async (req, res) => {
 // Criar ordem
 exports.criar = async (req, res) => {
     try {
-        const { produto_id, quantidade, cliente_id, cliente_nome, data_prevista, prioridade, notas } = req.body;
+        const { produto_id, quantidade, cliente_id, cliente_nome, data_prevista, prioridade, notas, estacoes: customEstacoes } = req.body;
 
         if (!produto_id || !quantidade) {
             return res.status(400).json({ error: 'produto_id e quantidade são obrigatórios' });
@@ -167,29 +167,41 @@ exports.criar = async (req, res) => {
         const ordem_id = result.insertId;
 
         // Criar registos de estações
-        const [estacoes] = await db.query(`
-            SELECT estacao_id, ordem FROM produto_estacoes
-            WHERE produto_id = ?
-            ORDER BY ordem
-        `, [produto_id]);
-
-        // Se não tiver estações configuradas, usar as default
-        if (estacoes.length === 0) {
-            const [defaultEstacoes] = await db.query(
-                'SELECT id, ordem_default FROM estacoes WHERE ativa = TRUE ORDER BY ordem_default'
-            );
-            for (const est of defaultEstacoes) {
+        // Prioridade: 1) Array customizado enviado pelo utilizador, 2) Estações do produto, 3) Default
+        if (customEstacoes && Array.isArray(customEstacoes) && customEstacoes.length > 0) {
+            // Usar ordem personalizada do utilizador
+            for (let i = 0; i < customEstacoes.length; i++) {
                 await db.query(
                     `INSERT INTO ordem_estacoes (ordem_id, estacao_id, ordem) VALUES (?, ?, ?)`,
-                    [ordem_id, est.id, est.ordem_default]
+                    [ordem_id, customEstacoes[i], i + 1]
                 );
             }
         } else {
-            for (const est of estacoes) {
-                await db.query(
-                    `INSERT INTO ordem_estacoes (ordem_id, estacao_id, ordem) VALUES (?, ?, ?)`,
-                    [ordem_id, est.estacao_id, est.ordem]
+            // Tentar usar estações do produto
+            const [estacoes] = await db.query(`
+                SELECT estacao_id, ordem FROM produto_estacoes
+                WHERE produto_id = ?
+                ORDER BY ordem
+            `, [produto_id]);
+
+            // Se não tiver estações configuradas, usar as default
+            if (estacoes.length === 0) {
+                const [defaultEstacoes] = await db.query(
+                    'SELECT id, ordem_default FROM estacoes WHERE ativa = TRUE ORDER BY ordem_default'
                 );
+                for (const est of defaultEstacoes) {
+                    await db.query(
+                        `INSERT INTO ordem_estacoes (ordem_id, estacao_id, ordem) VALUES (?, ?, ?)`,
+                        [ordem_id, est.id, est.ordem_default]
+                    );
+                }
+            } else {
+                for (const est of estacoes) {
+                    await db.query(
+                        `INSERT INTO ordem_estacoes (ordem_id, estacao_id, ordem) VALUES (?, ?, ?)`,
+                        [ordem_id, est.estacao_id, est.ordem]
+                    );
+                }
             }
         }
 
@@ -516,6 +528,79 @@ exports.verificarStock = async (req, res) => {
     } catch (error) {
         console.error('Erro ao verificar stock:', error);
         res.status(500).json({ error: 'Erro ao verificar stock' });
+    }
+};
+
+// Atualizar estado de serviço externo
+exports.atualizarServico = async (req, res) => {
+    try {
+        const { id, servicoId } = req.params;
+        const { estado } = req.body;
+
+        if (!['pendente', 'enviado', 'recebido'].includes(estado)) {
+            return res.status(400).json({ error: 'Estado inválido' });
+        }
+
+        await db.query(
+            `UPDATE ordem_servicos SET estado = ? WHERE id = ? AND ordem_id = ?`,
+            [estado, servicoId, id]
+        );
+
+        // Verificar se todos os serviços foram recebidos
+        const [pendentes] = await db.query(
+            `SELECT COUNT(*) as count FROM ordem_servicos WHERE ordem_id = ? AND estado != 'recebido'`,
+            [id]
+        );
+
+        res.json({
+            message: 'Serviço atualizado',
+            todosConcluidos: pendentes[0].count === 0
+        });
+    } catch (error) {
+        console.error('Erro ao atualizar serviço:', error);
+        res.status(500).json({ error: 'Erro ao atualizar serviço' });
+    }
+};
+
+// Concluir ordem manualmente (após serviços externos)
+exports.concluirOrdemManual = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar se ordem está em aguarda_externo
+        const [ordem] = await db.query('SELECT estado, numero FROM ordens WHERE id = ?', [id]);
+
+        if (ordem.length === 0) {
+            return res.status(404).json({ error: 'Ordem não encontrada' });
+        }
+
+        if (ordem[0].estado !== 'aguarda_externo') {
+            return res.status(400).json({ error: 'Ordem não está aguardando serviços externos' });
+        }
+
+        // Verificar se todos os serviços foram recebidos
+        const [pendentes] = await db.query(
+            `SELECT COUNT(*) as count FROM ordem_servicos WHERE ordem_id = ? AND estado != 'recebido'`,
+            [id]
+        );
+
+        if (pendentes[0].count > 0) {
+            return res.status(400).json({ error: 'Ainda existem serviços pendentes' });
+        }
+
+        // Concluir ordem
+        await concluirOrdem(id);
+
+        // Emitir evento WebSocket
+        emitOrderUpdate(req, 'order-completed', {
+            orderId: id,
+            orderNumber: ordem[0].numero
+        });
+
+        res.json({ message: 'Ordem concluída com sucesso' });
+    } catch (error) {
+        console.error('Erro ao concluir ordem:', error);
+        res.status(500).json({ error: 'Erro ao concluir ordem' });
     }
 };
 
