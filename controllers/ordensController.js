@@ -357,6 +357,18 @@ exports.avancarEstacao = async (req, res) => {
         const { id } = req.params;
         const { estacao_id, notas } = req.body;
 
+        // Buscar info da ordem e estação atual para os eventos
+        const [ordemInfo] = await db.query(
+            'SELECT numero FROM ordens WHERE id = ?',
+            [id]
+        );
+        const [estacaoAtualInfo] = await db.query(
+            'SELECT nome FROM estacoes WHERE id = ?',
+            [estacao_id]
+        );
+        const ordemNumero = ordemInfo[0]?.numero || `#${id}`;
+        const estacaoAtualNome = estacaoAtualInfo[0]?.nome || `Estação ${estacao_id}`;
+
         // Concluir estação atual
         await db.query(
             `UPDATE ordem_estacoes SET
@@ -376,8 +388,9 @@ exports.avancarEstacao = async (req, res) => {
 
         // Verificar se há próxima estação
         const [proxima] = await db.query(`
-            SELECT oe.estacao_id, oe.ordem
+            SELECT oe.estacao_id, oe.ordem, e.nome AS estacao_nome
             FROM ordem_estacoes oe
+            JOIN estacoes e ON oe.estacao_id = e.id
             WHERE oe.ordem_id = ?
               AND oe.estado = 'pendente'
             ORDER BY oe.ordem
@@ -395,8 +408,11 @@ exports.avancarEstacao = async (req, res) => {
             // Emitir evento WebSocket - saiu da estação anterior
             emitOrderUpdate(req, 'order-station-changed', {
                 orderId: id,
+                orderNumber: ordemNumero,
                 fromStation: estacao_id,
-                toStation: proxima[0].estacao_id
+                fromStationName: estacaoAtualNome,
+                toStation: proxima[0].estacao_id,
+                toStationName: proxima[0].estacao_nome
             });
 
             res.json({
@@ -417,7 +433,9 @@ exports.avancarEstacao = async (req, res) => {
                 // Emitir evento WebSocket
                 emitOrderUpdate(req, 'order-completed-station', {
                     orderId: id,
+                    orderNumber: ordemNumero,
                     stationId: estacao_id,
+                    stationName: estacaoAtualNome,
                     status: 'aguarda_externo'
                 });
 
@@ -429,7 +447,9 @@ exports.avancarEstacao = async (req, res) => {
                 // Emitir evento WebSocket
                 emitOrderUpdate(req, 'order-completed', {
                     orderId: id,
-                    stationId: estacao_id
+                    orderNumber: ordemNumero,
+                    stationId: estacao_id,
+                    stationName: estacaoAtualNome
                 });
 
                 res.json({ message: 'Ordem concluída', estado: 'concluida' });

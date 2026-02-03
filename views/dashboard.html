@@ -209,25 +209,29 @@
 
             socket.on('order-started', (data) => {
                 console.log('🚀 Ordem iniciada:', data);
-                showNotification('Produção Iniciada', `Ordem #${data.orderId} começou produção`, 'info');
+                showNotification('Produção Iniciada', `Ordem ${data.orderNumber || '#' + data.orderId} começou produção`, 'info');
                 carregarDashboard();
             });
 
             socket.on('order-station-changed', (data) => {
                 console.log('🔄 Ordem mudou de estação:', data);
-                showNotification('Ordem Avançou', `Ordem moveu para estação ${data.toStation}`, 'primary');
+                showNotification('Estação Concluída',
+                    `${data.orderNumber || 'Ordem #' + data.orderId}: ${data.fromStationName || 'Estação ' + data.fromStation} concluída → ${data.toStationName || 'Estação ' + data.toStation}`,
+                    'success');
+                playSuccessSound();
                 carregarDashboard();
             });
 
             socket.on('order-completed', (data) => {
                 console.log('✅ Ordem concluída:', data);
-                showNotification('Ordem Concluída', `Ordem #${data.orderId} foi concluída com sucesso!`, 'success');
+                showNotification('Ordem Concluída', `${data.orderNumber || 'Ordem #' + data.orderId} foi concluída com sucesso!`, 'success');
                 playSuccessSound();
                 carregarDashboard();
             });
 
             socket.on('order-completed-station', (data) => {
                 console.log('📤 Ordem saiu da estação:', data);
+                showNotification('Aguarda Externo', `${data.orderNumber || 'Ordem #' + data.orderId}: ${data.stationName || 'Estação'} concluída, aguarda serviços externos`, 'warning');
                 carregarDashboard();
             });
 

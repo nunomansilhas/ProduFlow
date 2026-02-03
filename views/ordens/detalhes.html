@@ -101,11 +101,113 @@
         </main>
     </div>
 
+    <!-- Toast para notificações -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+        <div id="live-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-success text-white">
+                <i class="fas fa-bell me-2"></i>
+                <strong class="me-auto" id="toast-title">Notificação</strong>
+                <small>Agora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-body">
+                Mensagem
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/js/main.js"></script>
     <script>
         const ordemId = window.location.pathname.split('/')[2];
         let ordem = null;
+        let socket = null;
+
+        // =============================================
+        // WEBSOCKET para atualizações em tempo real
+        // =============================================
+        function initWebSocket() {
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('📋 Detalhes ordem conectado ao WebSocket');
+            });
+
+            socket.on('order-started', (data) => {
+                if (data.orderId == ordemId) {
+                    console.log('🚀 Esta ordem foi iniciada:', data);
+                    showNotification('Produção Iniciada', 'A produção desta ordem começou', 'info');
+                    carregarOrdem();
+                }
+            });
+
+            socket.on('order-station-changed', (data) => {
+                if (data.orderId == ordemId) {
+                    console.log('🔄 Estação concluída:', data);
+                    showNotification('Estação Concluída',
+                        `${data.fromStationName || 'Estação'} concluída → Avançou para ${data.toStationName || 'próxima estação'}`,
+                        'success');
+                    playSuccessSound();
+                    carregarOrdem();
+                }
+            });
+
+            socket.on('order-completed', (data) => {
+                if (data.orderId == ordemId) {
+                    console.log('✅ Ordem concluída:', data);
+                    showNotification('Ordem Concluída', `${data.stationName || 'Última estação'} concluída - Ordem finalizada!`, 'success');
+                    playSuccessSound();
+                    carregarOrdem();
+                }
+            });
+
+            socket.on('order-completed-station', (data) => {
+                if (data.orderId == ordemId) {
+                    console.log('📤 Estação concluída:', data);
+                    showNotification('Aguarda Serviços', `${data.stationName || 'Estação'} concluída - Aguardando serviços externos`, 'warning');
+                    carregarOrdem();
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('📋 Detalhes ordem desconectado');
+            });
+        }
+
+        function showNotification(title, message, type = 'success') {
+            const toast = document.getElementById('live-toast');
+            const toastTitle = document.getElementById('toast-title');
+            const toastBody = document.getElementById('toast-body');
+            const toastHeader = toast.querySelector('.toast-header');
+
+            toastTitle.textContent = title;
+            toastBody.textContent = message;
+
+            toastHeader.className = 'toast-header text-white';
+            toastHeader.classList.add(`bg-${type}`);
+
+            const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: 5000 });
+            bsToast.show();
+        }
+
+        function playSuccessSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [523, 659, 784].forEach((freq, i) => {
+                    setTimeout(() => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.frequency.value = freq;
+                        gain.gain.value = 0.2;
+                        osc.start();
+                        setTimeout(() => osc.stop(), 150);
+                    }, i * 100);
+                });
+            } catch (e) {}
+        }
 
         async function carregarOrdem() {
             try {
@@ -274,7 +376,10 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', carregarOrdem);
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarOrdem();
+            initWebSocket();
+        });
     </script>
 </body>
 </html>

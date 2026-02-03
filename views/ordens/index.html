@@ -117,24 +117,27 @@
 
             socket.on('order-started', (data) => {
                 console.log('🚀 Ordem iniciada:', data);
-                showNotification('Produção Iniciada', `Ordem começou produção`, 'info');
+                showNotification('Produção Iniciada', `${data.orderNumber || 'Ordem'} começou produção`, 'info');
                 carregarOrdens();
             });
 
             socket.on('order-station-changed', (data) => {
                 console.log('🔄 Ordem mudou de estação:', data);
-                showNotification('Ordem Avançou', `Ordem moveu para próxima estação`, 'primary');
+                showNotification('Estação Concluída',
+                    `${data.orderNumber || 'Ordem'}: ${data.fromStationName || 'Estação'} concluída → ${data.toStationName || 'próxima'}`,
+                    'success');
                 carregarOrdens();
             });
 
             socket.on('order-completed', (data) => {
                 console.log('✅ Ordem concluída:', data);
-                showNotification('Ordem Concluída', `Ordem foi concluída com sucesso!`, 'success');
+                showNotification('Ordem Concluída', `${data.orderNumber || 'Ordem'} foi concluída com sucesso!`, 'success');
                 carregarOrdens();
             });
 
             socket.on('order-completed-station', (data) => {
                 console.log('📤 Ordem saiu da estação:', data);
+                showNotification('Aguarda Externo', `${data.orderNumber || 'Ordem'} aguarda serviços externos`, 'warning');
                 carregarOrdens();
             });
         }
