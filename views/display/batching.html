@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batching - ProduFlow</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --surface2: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #fff;
+            --muted: #888;
+            --accent: #0d6efd;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--accent);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .header .btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .header .btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .content {
+            padding: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .summary-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .summary-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .batch-group {
+            background: var(--surface);
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .batch-header {
+            background: var(--surface2);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .batch-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .batch-header .badge {
+            background: var(--accent);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+        }
+
+        .batch-body {
+            padding: 1.5rem;
+        }
+
+        .orders-list {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .order-tag {
+            background: var(--surface2);
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-left: 3px solid var(--muted);
+        }
+
+        .order-tag.p-4 { border-left-color: var(--danger); }
+        .order-tag.p-3 { border-left-color: var(--warning); }
+        .order-tag.p-2 { border-left-color: var(--success); }
+
+        .order-tag .numero {
+            font-weight: 600;
+        }
+
+        .order-tag .qty {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .materials-section h3 {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .materials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .material-card {
+            background: var(--surface2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .material-card .qty-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .material-card .qty-circle.low {
+            background: var(--warning);
+        }
+
+        .material-card .qty-circle.critical {
+            background: var(--danger);
+        }
+
+        .material-card .info {
+            flex: 1;
+        }
+
+        .material-card .nome {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .material-card .stock {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .material-card .stock.ok { color: var(--success); }
+        .material-card .stock.low { color: var(--warning); }
+        .material-card .stock.critical { color: var(--danger); }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--muted);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem;
+        }
+
+        .spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media print {
+            .header .actions { display: none; }
+            body { background: #fff; color: #000; }
+            .batch-group { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>
+            <i class="fas fa-layer-group"></i>
+            <span id="station-name">Batching</span>
+        </h1>
+        <div class="actions">
+            <button class="btn" onclick="window.print()">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <a href="/display" class="btn">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </header>
+
+    <main class="content" id="content">
+        <div class="loader">
+            <div class="spinner"></div>
+        </div>
+    </main>
+
+    <script>
+        const estacaoId = new URLSearchParams(window.location.search).get('estacao') ||
+                          window.location.pathname.split('/').pop();
+        const API = '/api';
+
+        let estacao = null;
+        let batches = [];
+
+        async function loadStation() {
+            try {
+                const res = await fetch(`${API}/display/estacoes/${estacaoId}`);
+                estacao = res.ok ? await res.json() : { nome: 'Estação' };
+                document.getElementById('station-name').textContent = `Batching - ${estacao.nome}`;
+            } catch (e) {
+                estacao = { nome: 'Estação' };
+            }
+        }
+
+        async function loadBatches() {
+            try {
+                const res = await fetch(`${API}/estacoes/${estacaoId}/materiais`);
+                batches = res.ok ? await res.json() : [];
+            } catch (e) {
+                batches = [];
+            }
+        }
+
+        function formatNum(n) {
+            return new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 2 }).format(n);
+        }
+
+        function render() {
+            const content = document.getElementById('content');
+
+            if (batches.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h2>Sem ordens na fila</h2>
+                        <p>Não há ordens pendentes para processar nesta estação.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Calculate totals
+            const totalOrdens = batches.reduce((sum, b) => sum + b.num_ordens, 0);
+            const totalQty = batches.reduce((sum, b) => sum + b.quantidade_total, 0);
+            const totalMateriais = new Set(batches.flatMap(b => b.materiais.map(m => m.material_id))).size;
+
+            let html = `
+                <div class="summary-bar">
+                    <div class="summary-card">
+                        <div class="label">Produtos</div>
+                        <div class="value">${batches.length}</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">Ordens</div>
+                        <div class="value">${totalOrdens}</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">Unidades</div>
+                        <div class="value">${totalQty}</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">Materiais</div>
+                        <div class="value">${totalMateriais}</div>
+                    </div>
+                </div>
+            `;
+
+            for (const batch of batches) {
+                html += `
+                    <div class="batch-group">
+                        <div class="batch-header">
+                            <h2>
+                                <i class="fas fa-box"></i>
+                                ${batch.produto_nome}
+                                ${batch.sku ? `<code style="font-size: 0.8rem; color: var(--muted);">${batch.sku}</code>` : ''}
+                            </h2>
+                            <span class="badge">${batch.num_ordens} ordem(ns) = ${batch.quantidade_total} unid.</span>
+                        </div>
+                        <div class="batch-body">
+                            <div class="orders-list">
+                                ${batch.ordens.map((num, i) => `
+                                    <div class="order-tag p-${batch.max_prioridade}">
+                                        <span class="numero">${num}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            ${batch.materiais.length > 0 ? `
+                                <div class="materials-section">
+                                    <h3><i class="fas fa-cubes"></i> Materiais necessarios (total)</h3>
+                                    <div class="materials-grid">
+                                        ${batch.materiais.map(m => {
+                                            const ratio = m.stock_atual / m.quantidade_total;
+                                            const status = ratio >= 1 ? 'ok' : ratio >= 0.5 ? 'low' : 'critical';
+                                            return `
+                                                <div class="material-card">
+                                                    <div class="qty-circle ${status}">${formatNum(m.quantidade_total)}</div>
+                                                    <div class="info">
+                                                        <div class="nome">${m.nome}</div>
+                                                        <div class="stock ${status}">
+                                                            Stock: ${formatNum(m.stock_atual)} ${m.unidade}
+                                                            ${status !== 'ok' ? '<i class="fas fa-exclamation-triangle ms-1"></i>' : ''}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            ` : '<p style="color: var(--muted);"><i class="fas fa-info-circle"></i> Sem materiais definidos (biscate ou sem BOM)</p>'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+        }
+
+        async function init() {
+            await loadStation();
+            await loadBatches();
+            render();
+
+            // Refresh every 30 seconds
+            setInterval(async () => {
+                await loadBatches();
+                render();
+            }, 30000);
+        }
+
+        init();
+    </script>
+</body>
+</html>

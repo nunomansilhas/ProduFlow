@@ -670,3 +670,146 @@ async function concluirOrdem(ordem_id) {
         }
     }
 }
+
+// =====================================================
+// AGRUPAMENTO DE ORDENS
+// =====================================================
+
+// Sugestões de agrupamento para um produto
+exports.sugestoesAgrupamento = async (req, res) => {
+    try {
+        const { produto_id } = req.query;
+
+        if (!produto_id) {
+            return res.json({ sugestoes: [], materiaisAgregados: [] });
+        }
+
+        // Buscar ordens do mesmo produto que ainda não começaram ou estão no início
+        const [ordensExistentes] = await db.query(`
+            SELECT
+                o.id,
+                o.numero,
+                o.quantidade,
+                o.prioridade,
+                o.cliente_nome,
+                o.data_prevista,
+                o.estado,
+                o.grupo_id,
+                g.nome AS grupo_nome,
+                (SELECT e.nome FROM ordem_estacoes oe
+                 JOIN estacoes e ON oe.estacao_id = e.id
+                 WHERE oe.ordem_id = o.id AND oe.estado = 'em_progresso'
+                 LIMIT 1) AS estacao_atual
+            FROM ordens o
+            LEFT JOIN grupos_producao g ON o.grupo_id = g.id
+            WHERE o.produto_id = ?
+              AND o.estado IN ('pendente', 'em_producao')
+            ORDER BY o.prioridade DESC, o.data_prevista
+        `, [produto_id]);
+
+        // Calcular total de materiais se houver ordens para agrupar
+        let materiaisAgregados = [];
+        if (ordensExistentes.length > 0) {
+            const quantidadeTotal = ordensExistentes.reduce((sum, o) => sum + o.quantidade, 0);
+            materiaisAgregados = await bomCalculator.calcularMateriaisBOM(produto_id, quantidadeTotal);
+        }
+
+        res.json({
+            sugestoes: ordensExistentes,
+            materiaisAgregados: materiaisAgregados,
+            totalQuantidade: ordensExistentes.reduce((sum, o) => sum + o.quantidade, 0)
+        });
+    } catch (error) {
+        console.error('Erro ao buscar sugestões de agrupamento:', error);
+        res.status(500).json({ error: 'Erro ao buscar sugestões' });
+    }
+};
+
+// Criar grupo e agrupar ordens
+exports.criarGrupo = async (req, res) => {
+    try {
+        const { nome, produto_id, ordens_ids } = req.body;
+
+        if (!ordens_ids || ordens_ids.length < 2) {
+            return res.status(400).json({ error: 'Selecione pelo menos 2 ordens para agrupar' });
+        }
+
+        // Criar grupo
+        const [result] = await db.query(
+            `INSERT INTO grupos_producao (nome, produto_id) VALUES (?, ?)`,
+            [nome || `Grupo ${new Date().toLocaleDateString('pt-PT')}`, produto_id || null]
+        );
+
+        const grupo_id = result.insertId;
+
+        // Associar ordens ao grupo
+        await db.query(
+            `UPDATE ordens SET grupo_id = ? WHERE id IN (?)`,
+            [grupo_id, ordens_ids]
+        );
+
+        res.status(201).json({
+            id: grupo_id,
+            message: `Grupo criado com ${ordens_ids.length} ordens`
+        });
+    } catch (error) {
+        console.error('Erro ao criar grupo:', error);
+        res.status(500).json({ error: 'Erro ao criar grupo' });
+    }
+};
+
+// Materiais agregados por estação (para batching)
+exports.materiaisEstacao = async (req, res) => {
+    try {
+        const { estacao_id } = req.params;
+
+        // Buscar todas as ordens na fila desta estação, agrupadas por produto
+        const [rows] = await db.query(`
+            SELECT
+                o.produto_id,
+                COALESCE(p.nome, 'Biscate') AS produto_nome,
+                p.sku,
+                COUNT(DISTINCT o.id) AS num_ordens,
+                SUM(o.quantidade) AS quantidade_total,
+                GROUP_CONCAT(DISTINCT o.numero ORDER BY o.prioridade DESC) AS ordens_numeros,
+                GROUP_CONCAT(DISTINCT o.id) AS ordens_ids,
+                MAX(o.prioridade) AS max_prioridade,
+                MIN(o.data_prevista) AS prazo_mais_urgente
+            FROM ordem_estacoes oe
+            JOIN ordens o ON oe.ordem_id = o.id
+            LEFT JOIN produtos p ON o.produto_id = p.id
+            WHERE oe.estacao_id = ?
+              AND oe.estado IN ('pendente', 'em_progresso')
+              AND o.estado != 'concluida'
+            GROUP BY o.produto_id, p.nome, p.sku
+            ORDER BY max_prioridade DESC, prazo_mais_urgente
+        `, [estacao_id]);
+
+        // Para cada produto, calcular materiais agregados
+        const resultado = [];
+        for (const row of rows) {
+            let materiais = [];
+            if (row.produto_id) {
+                materiais = await bomCalculator.calcularMateriaisBOM(row.produto_id, row.quantidade_total);
+            }
+
+            resultado.push({
+                produto_id: row.produto_id,
+                produto_nome: row.produto_nome,
+                sku: row.sku,
+                num_ordens: row.num_ordens,
+                quantidade_total: row.quantidade_total,
+                ordens: row.ordens_numeros ? row.ordens_numeros.split(',') : [],
+                ordens_ids: row.ordens_ids ? row.ordens_ids.split(',').map(Number) : [],
+                max_prioridade: row.max_prioridade,
+                prazo_mais_urgente: row.prazo_mais_urgente,
+                materiais: materiais
+            });
+        }
+
+        res.json(resultado);
+    } catch (error) {
+        console.error('Erro ao obter materiais da estação:', error);
+        res.status(500).json({ error: 'Erro ao obter materiais' });
+    }
+};

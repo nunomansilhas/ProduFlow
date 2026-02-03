@@ -128,8 +128,10 @@ router.get('/estacoes/:id/ordens', estacoesController.ordensNaEstacao);
 // ============================================
 router.get('/ordens', ordensController.listar);
 router.get('/ordens/verificar-stock', ordensController.verificarStock);
+router.get('/ordens/sugestoes-agrupamento', ordensController.sugestoesAgrupamento);
 router.get('/ordens/:id', ordensController.obter);
 router.post('/ordens', ordensController.criar);
+router.post('/ordens/grupos', ordensController.criarGrupo);
 router.put('/ordens/:id', ordensController.atualizar);
 router.delete('/ordens/:id', ordensController.eliminar);
 router.post('/ordens/:id/iniciar', ordensController.iniciarProducao);
@@ -137,6 +139,11 @@ router.post('/ordens/:id/avancar', ordensController.avancarEstacao);
 router.post('/ordens/:id/saltar', ordensController.saltarEstacao);
 router.put('/ordens/:id/servicos/:servicoId', ordensController.atualizarServico);
 router.post('/ordens/:id/concluir', ordensController.concluirOrdemManual);
+
+// ============================================
+// AGRUPAMENTO E BATCHING
+// ============================================
+router.get('/estacoes/:estacao_id/materiais', ordensController.materiaisEstacao);
 
 // ============================================
 // ALERTAS

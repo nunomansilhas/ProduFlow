@@ -31,6 +31,11 @@ router.get('/', (req, res) => {
 // ECRÃ RASPBERRY PI (público - sem autenticação)
 // ============================================
 
+// Vista de batching (materiais agregados por produto) - deve vir antes de /display/:id
+router.get('/display/batching/:id', (req, res) => {
+    res.sendFile(path.join(viewsDir, 'display', 'batching.html'));
+});
+
 // Display da estação para Raspberry Pi
 router.get('/display/:id', (req, res) => {
     res.sendFile(path.join(viewsDir, 'display', 'estacao.html'));
