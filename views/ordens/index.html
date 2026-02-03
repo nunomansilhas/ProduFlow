@@ -88,10 +88,69 @@
         </main>
     </div>
 
+    <!-- Toast para notificações -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+        <div id="live-toast" class="toast" role="alert">
+            <div class="toast-header bg-success text-white">
+                <i class="fas fa-bell me-2"></i>
+                <strong class="me-auto" id="toast-title">Notificação</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-body">Mensagem</div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/js/main.js"></script>
     <script>
         let ordens = [];
+        let socket = null;
+
+        // WebSocket para atualizações em tempo real
+        function initWebSocket() {
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('📋 Ordens conectado ao WebSocket');
+            });
+
+            socket.on('order-started', (data) => {
+                console.log('🚀 Ordem iniciada:', data);
+                showNotification('Produção Iniciada', `Ordem começou produção`, 'info');
+                carregarOrdens();
+            });
+
+            socket.on('order-station-changed', (data) => {
+                console.log('🔄 Ordem mudou de estação:', data);
+                showNotification('Ordem Avançou', `Ordem moveu para próxima estação`, 'primary');
+                carregarOrdens();
+            });
+
+            socket.on('order-completed', (data) => {
+                console.log('✅ Ordem concluída:', data);
+                showNotification('Ordem Concluída', `Ordem foi concluída com sucesso!`, 'success');
+                carregarOrdens();
+            });
+
+            socket.on('order-completed-station', (data) => {
+                console.log('📤 Ordem saiu da estação:', data);
+                carregarOrdens();
+            });
+        }
+
+        function showNotification(title, message, type = 'success') {
+            const toast = document.getElementById('live-toast');
+            const toastTitle = document.getElementById('toast-title');
+            const toastBody = document.getElementById('toast-body');
+            const toastHeader = toast.querySelector('.toast-header');
+
+            toastTitle.textContent = title;
+            toastBody.textContent = message;
+            toastHeader.className = 'toast-header text-white bg-' + type;
+
+            new bootstrap.Toast(toast, { autohide: true, delay: 4000 }).show();
+        }
 
         async function carregarOrdens() {
             try {
@@ -178,7 +237,10 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', carregarOrdens);
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarOrdens();
+            initWebSocket();
+        });
     </script>
 </body>
 </html>
