@@ -282,48 +282,84 @@
             opacity: 1;
         }
 
-        /* Fila - apenas visível em ecrãs maiores */
-        .queue {
+        /* Lista de corte - apenas visível em ecrãs maiores */
+        .cut-list {
             display: none;
-            background: var(--surface);
-            border-radius: 0.75rem;
-            padding: 0.75rem;
-            max-height: 30vh;
+            background: #fff;
+            color: #000;
+            border-radius: 0.5rem;
             overflow-y: auto;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 13px;
         }
 
-        .queue-header {
-            font-size: 0.8rem;
-            color: var(--muted);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .queue-count {
-            background: var(--accent);
+        .cut-list-header {
+            background: #000;
             color: #fff;
-            padding: 0.1rem 0.4rem;
-            border-radius: 1rem;
-            font-size: 0.7rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: sticky;
+            top: 0;
         }
 
-        .queue-item {
+        .cut-material {
+            border-bottom: 2px solid #000;
+        }
+
+        .cut-material-name {
+            background: #eee;
+            padding: 0.4rem 0.75rem;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.25rem;
-            background: rgba(255,255,255,0.02);
-            border-left: 3px solid var(--muted);
-            font-size: 0.85rem;
         }
 
-        .queue-item.p-4 { border-left-color: var(--danger); }
-        .queue-item.p-3 { border-left-color: #f97316; }
-        .queue-item.p-2 { border-left-color: var(--warning); }
+        .cut-row {
+            display: flex;
+            align-items: center;
+            padding: 0.35rem 0.75rem;
+            border-bottom: 1px solid #ddd;
+            gap: 0.75rem;
+        }
+
+        .cut-row:last-child {
+            border-bottom: none;
+        }
+
+        .cut-check {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #000;
+            flex-shrink: 0;
+        }
+
+        .cut-qty {
+            font-size: 1.2rem;
+            font-weight: 700;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        .cut-dim {
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .cut-for {
+            color: #888;
+            font-size: 0.75rem;
+        }
+
+        .cut-empty {
+            padding: 2rem;
+            text-align: center;
+            color: #999;
+        }
 
         /* Estado vazio */
         .empty {
@@ -447,7 +483,7 @@
                 flex: 2;
             }
 
-            .queue {
+            .cut-list {
                 display: flex;
                 flex-direction: column;
                 flex: 1;
@@ -539,7 +575,7 @@
                 display: none;
             }
 
-            .queue {
+            .cut-list {
                 display: flex;
                 flex-direction: column;
                 flex: 1;
@@ -570,6 +606,7 @@
 
         let estacao = null;
         let ordens = [];
+        let materiais = [];
         let socket = null;
         let connected = false;
         let processing = false;
@@ -662,7 +699,7 @@
 
             ['order-started', 'order-station-changed', 'order-completed', 'order-completed-station'].forEach(event => {
                 socket.on(event, async (data) => {
-                    await loadOrders();
+                    await Promise.all([loadOrders(), loadMateriais()]);
                     render();
                     if (event === 'order-station-changed' && data.toStation == estacaoId) {
                         playSound(880, 200);
@@ -760,6 +797,15 @@
             }
         }
 
+        async function loadMateriais() {
+            try {
+                const res = await fetch(`${API}/estacoes/${estacaoId}/materiais`);
+                materiais = res.ok ? await res.json() : [];
+            } catch (e) {
+                materiais = [];
+            }
+        }
+
         function formatDate(str) {
             if (!str) return '-';
             return new Date(str).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
@@ -775,10 +821,14 @@
         }
 
         // ========== RENDER ==========
+        function fmt(n) {
+            if (n === Math.floor(n)) return n.toString();
+            return n.toFixed(2).replace('.', ',');
+        }
+
         function render() {
             const app = document.getElementById('app');
             const current = ordens.find(o => o.estado_estacao === 'em_progresso') || ordens[0];
-            const queue = ordens.filter(o => o !== current);
             const now = new Date();
 
             app.innerHTML = `
@@ -792,7 +842,7 @@
 
                 <main class="content">
                     ${current ? renderOrder(current) : renderEmpty()}
-                    ${renderQueue(queue)}
+                    ${renderCutList()}
                 </main>
 
                 <footer class="status-bar">
@@ -867,22 +917,42 @@
             `;
         }
 
-        function renderQueue(queue) {
-            return `
-                <div class="queue">
-                    <div class="queue-header">
-                        <span>Fila</span>
-                        <span class="queue-count">${queue.length}</span>
+        function renderCutList() {
+            if (!materiais || materiais.length === 0) {
+                return `
+                    <div class="cut-list">
+                        <div class="cut-list-header">Lista de Corte</div>
+                        <div class="cut-empty">Sem materiais</div>
                     </div>
-                    ${queue.length === 0 ?
-                        '<div style="color: var(--muted); text-align: center; padding: 1rem; font-size: 0.8rem;">Vazia</div>' :
-                        queue.map(o => `
-                            <div class="queue-item p-${o.prioridade}">
-                                <span>${o.numero}</span>
-                                <span style="color: var(--muted);">${o.quantidade}x</span>
-                            </div>
-                        `).join('')
-                    }
+                `;
+            }
+
+            let rows = '';
+            for (const mat of materiais) {
+                rows += `<div class="cut-material">`;
+                rows += `<div class="cut-material-name">
+                    <span>${mat.material}</span>
+                    <span>${fmt(mat.total)} ${mat.unidade}</span>
+                </div>`;
+
+                for (const c of mat.cortes) {
+                    rows += `
+                        <div class="cut-row">
+                            <span class="cut-check"></span>
+                            <span class="cut-qty">${c.pecas}x</span>
+                            <span class="cut-dim">${fmt(c.medida)} ${mat.unidade}</span>
+                            <span class="cut-for">${c.produto}</span>
+                        </div>
+                    `;
+                }
+
+                rows += `</div>`;
+            }
+
+            return `
+                <div class="cut-list">
+                    <div class="cut-list-header">Lista de Corte</div>
+                    ${rows}
                 </div>
             `;
         }
@@ -896,14 +966,14 @@
         // ========== INIT ==========
         async function init() {
             await loadStation();
-            await loadOrders();
+            await Promise.all([loadOrders(), loadMateriais()]);
             render();
             initSocket();
 
             setInterval(updateClock, 1000);
             setInterval(async () => {
                 if (!connected && !processing) {
-                    await loadOrders();
+                    await Promise.all([loadOrders(), loadMateriais()]);
                     render();
                 }
             }, 30000);
