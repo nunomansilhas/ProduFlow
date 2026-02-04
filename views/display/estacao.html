@@ -2,822 +2,311 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ProduFlow</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Lista de Corte</title>
     <style>
-        :root {
-            --bg: #000;
-            --surface: #111;
-            --border: #222;
-            --text: #fff;
-            --muted: #666;
-            --accent: #0d6efd;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        html, body {
-            height: 100%;
-            overflow: hidden;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            touch-action: manipulation;
-        }
-
-        /* Layout principal */
-        .app {
+            background: #fff;
+            color: #000;
+            font-family: "Courier New", Courier, monospace;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            height: 100dvh;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
-        /* Header compacto */
-        .header {
-            background: var(--accent);
-            padding: 0.75rem 1rem;
+        header {
+            background: #000;
+            color: #fff;
+            padding: 0.75rem 1.25rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .station-name {
-            font-size: 1.25rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        header h1 {
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
         }
 
         .clock {
-            font-size: 1.25rem;
-            font-weight: 300;
-            font-variant-numeric: tabular-nums;
+            font-size: 1.1rem;
+            font-weight: 700;
         }
 
-        /* Conteúdo principal */
-        .content {
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-right: 0.4rem;
+        }
+
+        .status-dot.offline { background: #ef4444; }
+
+        main {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 1rem;
-            gap: 1rem;
-            overflow: hidden;
+            overflow-y: auto;
         }
 
-        /* Card da ordem atual */
-        .order-card {
-            background: var(--surface);
-            border-radius: 1rem;
-            padding: 1.25rem;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            border: 2px solid var(--border);
-            min-height: 0;
+        /* Material group */
+        .mat-group {
+            border-bottom: 3px solid #000;
         }
 
-        .order-card.has-order {
-            border-color: var(--accent);
-        }
-
-        /* Header da ordem */
-        .order-header {
+        .mat-header {
+            background: #111;
+            color: #fff;
+            padding: 0.6rem 1.25rem;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-            gap: 1rem;
-        }
-
-        .order-id {
-            font-size: clamp(1.5rem, 5vw, 2rem);
-            font-weight: 700;
-            color: var(--accent);
-            line-height: 1.1;
-        }
-
-        .order-product {
-            font-size: clamp(1rem, 3vw, 1.25rem);
-            color: var(--muted);
-            margin-top: 0.25rem;
-        }
-
-        .priority {
-            padding: 0.35rem 0.75rem;
-            border-radius: 2rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        .priority-1 { background: var(--success); }
-        .priority-2 { background: var(--warning); color: #000; }
-        .priority-3 { background: #f97316; }
-        .priority-4 { background: var(--danger); animation: pulse 1.5s infinite; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        /* Info da ordem */
-        .order-info {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .info-item {
-            background: rgba(255,255,255,0.03);
-            padding: 0.75rem;
-            border-radius: 0.75rem;
-            text-align: center;
-        }
-
-        .info-label {
-            font-size: 0.65rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 0.25rem;
-        }
-
-        .info-value {
-            font-size: clamp(1rem, 4vw, 1.5rem);
-            font-weight: 600;
-        }
-
-        .info-value.late {
-            color: var(--danger);
-        }
-
-        /* Notas */
-        .order-notes {
-            background: rgba(13, 110, 253, 0.1);
-            border-left: 3px solid var(--accent);
-            padding: 0.75rem 1rem;
-            border-radius: 0 0.5rem 0.5rem 0;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-            max-height: 4rem;
-            overflow-y: auto;
-        }
-
-        /* Swipe slider */
-        .swipe-area {
-            margin-top: auto;
-            padding-top: 0.5rem;
-        }
-
-        .swipe-slider {
-            position: relative;
-            height: 60px;
-            background: linear-gradient(90deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.05) 100%);
-            border-radius: 30px;
-            border: 2px solid var(--success);
-            overflow: hidden;
-        }
-
-        .swipe-track {
-            position: absolute;
-            inset: 0;
-            width: 0%;
-            background: linear-gradient(90deg, var(--success) 0%, #34d399 100%);
-            border-radius: 30px;
-            transition: width 0.1s ease-out;
-        }
-
-        .swipe-slider.completed .swipe-track {
-            width: 100% !important;
-            transition: width 0.3s ease-out;
-        }
-
-        .swipe-handle {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            width: 52px;
-            height: 52px;
-            background: #fff;
-            border-radius: 50%;
-            display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            color: var(--success);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            transition: left 0.1s ease-out;
-            z-index: 10;
-            touch-action: none;
-        }
-
-        .swipe-slider.completed .swipe-handle {
-            background: var(--success);
-            color: #fff;
-        }
-
-        .swipe-text {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: rgba(255,255,255,0.5);
-            pointer-events: none;
-            gap: 0.5rem;
-        }
-
-        .swipe-text i {
-            animation: bounce 1.5s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateX(0); }
-            50% { transform: translateX(5px); }
-        }
-
-        .swipe-slider.swiping .swipe-text,
-        .swipe-slider.completed .swipe-text {
-            opacity: 0;
-        }
-
-        .swipe-success {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            font-weight: 600;
-            color: #fff;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .swipe-slider.completed .swipe-success {
-            opacity: 1;
-        }
-
-        /* Lista de corte - apenas visível em ecrãs maiores */
-        .cut-list {
-            display: none;
-            background: #fff;
-            color: #000;
-            border-radius: 0.5rem;
-            overflow-y: auto;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 13px;
-        }
-
-        .cut-list-header {
-            background: #000;
-            color: #fff;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.8rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            font-size: 0.95rem;
             position: sticky;
             top: 0;
+            z-index: 50;
         }
 
-        .cut-material {
-            border-bottom: 2px solid #000;
-        }
-
-        .cut-material-name {
-            background: #eee;
-            padding: 0.4rem 0.75rem;
-            font-weight: 700;
+        .mat-total {
+            font-weight: 400;
             font-size: 0.85rem;
-            text-transform: uppercase;
-            display: flex;
-            justify-content: space-between;
         }
 
+        /* Cut row with swipe */
         .cut-row {
-            display: flex;
-            align-items: center;
-            padding: 0.35rem 0.75rem;
+            position: relative;
+            overflow: hidden;
             border-bottom: 1px solid #ddd;
-            gap: 0.75rem;
+            touch-action: pan-y;
         }
 
         .cut-row:last-child {
             border-bottom: none;
         }
 
-        .cut-check {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #000;
-            flex-shrink: 0;
+        .cut-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 1.5rem;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
         }
 
+        .cut-fg {
+            position: relative;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            gap: 1rem;
+            transition: transform 0.15s ease;
+            z-index: 1;
+        }
+
+        .cut-row.done .cut-fg {
+            background: #f0fdf4;
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .cut-row.done .cut-qty { color: #999; }
+
         .cut-qty {
-            font-size: 1.2rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            min-width: 35px;
+            min-width: 60px;
             text-align: right;
         }
 
+        .cut-sep {
+            color: #ccc;
+            font-size: 1.2rem;
+        }
+
         .cut-dim {
+            font-size: 1.2rem;
             font-weight: 700;
             flex: 1;
         }
 
         .cut-for {
             color: #888;
+            font-size: 0.8rem;
+            text-align: right;
+        }
+
+        .cut-notes {
             font-size: 0.75rem;
+            color: #aaa;
+            font-style: italic;
         }
 
-        .cut-empty {
-            padding: 2rem;
-            text-align: center;
-            color: #999;
-        }
-
-        /* Estado vazio */
+        /* Empty */
         .empty {
-            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: var(--muted);
-            text-align: center;
-            padding: 2rem;
+            padding: 4rem 2rem;
+            color: #ccc;
+            font-size: 1.3rem;
+            flex: 1;
         }
 
-        .empty i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.3;
+        .empty svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1.5rem;
+            fill: #ddd;
         }
 
-        .empty h2 {
-            font-size: 1.25rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-        }
-
-        .empty p {
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
-
-        /* Status bar */
-        .status-bar {
-            background: var(--surface);
-            padding: 0.5rem 1rem;
+        footer {
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+            padding: 0.4rem 1.25rem;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 0.7rem;
-            color: var(--muted);
-            border-top: 1px solid var(--border);
-            flex-shrink: 0;
+            font-size: 0.75rem;
+            color: #999;
         }
 
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--success);
-            display: inline-block;
-            margin-right: 0.4rem;
-        }
-
-        .status-dot.offline {
-            background: var(--danger);
-        }
-
-        /* Toast */
-        .toast {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            background: var(--success);
-            color: #fff;
-            padding: 1.5rem 2rem;
-            border-radius: 1rem;
-            font-size: 1.25rem;
-            font-weight: 600;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .toast.show {
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        .toast.error {
-            background: var(--danger);
-        }
-
-        /* Loader */
-        .loader {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .spinner {
-            width: 3rem;
-            height: 3rem;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Responsivo - ecrãs médios e grandes */
-        @media (min-width: 600px) {
-            .header {
-                padding: 1rem 1.5rem;
-            }
-
-            .station-name {
-                font-size: 1.5rem;
-            }
-
-            .content {
-                padding: 1.5rem;
-                flex-direction: row;
-            }
-
-            .order-card {
-                flex: 2;
-            }
-
-            .cut-list {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                max-height: none;
-            }
-
-            .swipe-slider {
-                height: 70px;
-            }
-
-            .swipe-handle {
-                width: 62px;
-                height: 62px;
-            }
-        }
-
-        /* Ecrãs muito pequenos */
-        @media (max-width: 360px) {
-            .header {
-                padding: 0.5rem 0.75rem;
-            }
-
-            .station-name {
-                font-size: 1rem;
-            }
-
-            .clock {
-                font-size: 1rem;
-            }
-
-            .content {
-                padding: 0.75rem;
-            }
-
-            .order-card {
-                padding: 1rem;
-            }
-
-            .order-info {
-                gap: 0.5rem;
-            }
-
-            .info-item {
-                padding: 0.5rem;
-            }
-
-            .swipe-slider {
-                height: 50px;
-            }
-
-            .swipe-handle {
-                width: 42px;
-                height: 42px;
-                top: 4px;
-                left: 4px;
-                font-size: 1rem;
-            }
-        }
-
-        /* Landscape em ecrãs pequenos */
-        @media (max-height: 500px) {
-            .header {
-                padding: 0.5rem 1rem;
-            }
-
-            .content {
-                padding: 0.5rem 1rem;
-                flex-direction: row;
-                gap: 1rem;
-            }
-
-            .order-card {
-                padding: 0.75rem 1rem;
-            }
-
-            .order-header {
-                margin-bottom: 0.5rem;
-            }
-
-            .order-info {
-                margin-bottom: 0.5rem;
-            }
-
-            .info-item {
-                padding: 0.5rem;
-            }
-
-            .order-notes {
-                display: none;
-            }
-
-            .cut-list {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                max-height: none;
-            }
-
-            .status-bar {
-                padding: 0.25rem 1rem;
-            }
+        /* Print */
+        @media print {
+            header { position: static; }
+            footer { display: none; }
+            .cut-bg { display: none; }
+            .cut-row.done .cut-fg { text-decoration: line-through; }
         }
     </style>
 </head>
 <body>
-    <div class="app" id="app">
-        <div class="loader">
-            <div class="spinner"></div>
+    <header>
+        <h1 id="title">Lista de Corte</h1>
+        <div>
+            <span class="status-dot" id="status-dot"></span>
+            <span class="clock" id="clock"></span>
         </div>
-    </div>
+    </header>
 
-    <div class="toast" id="toast">
-        <i class="fas fa-check-circle"></i>
-        <span id="toast-msg">Concluído!</span>
-    </div>
+    <main id="content">
+        <div class="empty">A carregar...</div>
+    </main>
 
+    <footer>
+        <span id="footer-info">ProduFlow</span>
+        <span id="footer-count"></span>
+    </footer>
+
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const estacaoId = window.location.pathname.split('/').pop();
-        const API = '/api/display'; // Rotas públicas sem autenticação
+        const API = '/api/display';
 
         let estacao = null;
-        let ordens = [];
         let materiais = [];
+        let done = JSON.parse(localStorage.getItem(`done-${estacaoId}`) || '{}');
         let socket = null;
         let connected = false;
-        let processing = false;
-        let swipeHandler = null;
 
-        const PRIO = { 1: 'Baixa', 2: 'Normal', 3: 'Alta', 4: 'Urgente' };
+        // ========== SWIPE HANDLER ==========
+        function initSwipes() {
+            document.querySelectorAll('.cut-row:not(.done)').forEach(row => {
+                const fg = row.querySelector('.cut-fg');
+                const key = row.dataset.key;
+                let startX = 0, currentX = 0, swiping = false;
+                const W = row.offsetWidth;
+                const THRESHOLD = W * 0.4;
 
-        // ========== SWIPE ==========
-        class SwipeHandler {
-            constructor(el, onComplete) {
-                this.el = el;
-                this.handle = el.querySelector('.swipe-handle');
-                this.track = el.querySelector('.swipe-track');
-                this.onComplete = onComplete;
-                this.dragging = false;
-                this.startX = 0;
-                this.x = 0;
-                this.maxX = 0;
-                this.init();
-            }
-
-            init() {
-                this.maxX = this.el.offsetWidth - this.handle.offsetWidth - 8;
-
-                this.handle.addEventListener('touchstart', e => this.start(e.touches[0].clientX), { passive: true });
-                document.addEventListener('touchmove', e => this.move(e.touches[0].clientX), { passive: true });
-                document.addEventListener('touchend', () => this.end());
-
-                this.handle.addEventListener('mousedown', e => this.start(e.clientX));
-                document.addEventListener('mousemove', e => this.move(e.clientX));
-                document.addEventListener('mouseup', () => this.end());
-            }
-
-            start(clientX) {
-                if (processing) return;
-                this.dragging = true;
-                this.startX = clientX - this.x;
-                this.el.classList.add('swiping');
-            }
-
-            move(clientX) {
-                if (!this.dragging) return;
-                this.x = Math.max(0, Math.min(clientX - this.startX, this.maxX));
-                this.handle.style.left = (4 + this.x) + 'px';
-                this.track.style.width = (this.x / this.maxX * 100) + '%';
-            }
-
-            end() {
-                if (!this.dragging) return;
-                this.dragging = false;
-                this.el.classList.remove('swiping');
-
-                if (this.x >= this.maxX * 0.9) {
-                    this.complete();
-                } else {
-                    this.reset();
+                function onStart(e) {
+                    if (row.classList.contains('done')) return;
+                    startX = e.touches ? e.touches[0].clientX : e.clientX;
+                    currentX = 0;
+                    swiping = true;
+                    fg.style.transition = 'none';
                 }
-            }
 
-            complete() {
-                this.el.classList.add('completed');
-                this.handle.style.left = (4 + this.maxX) + 'px';
-                this.track.style.width = '100%';
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                if (this.onComplete) this.onComplete();
-            }
+                function onMove(e) {
+                    if (!swiping) return;
+                    const x = e.touches ? e.touches[0].clientX : e.clientX;
+                    currentX = Math.min(0, x - startX);
+                    fg.style.transform = `translateX(${currentX}px)`;
+                }
 
-            reset() {
-                this.x = 0;
-                this.handle.style.left = '4px';
-                this.track.style.width = '0%';
-                this.el.classList.remove('completed');
-            }
-        }
+                function onEnd() {
+                    if (!swiping) return;
+                    swiping = false;
+                    fg.style.transition = 'transform 0.2s ease';
 
-        // ========== WEBSOCKET ==========
-        function initSocket() {
-            socket = io();
-
-            socket.on('connect', () => {
-                connected = true;
-                socket.emit('join-station', estacaoId);
-                updateStatus();
-            });
-
-            socket.on('disconnect', () => {
-                connected = false;
-                updateStatus();
-            });
-
-            ['order-started', 'order-station-changed', 'order-completed', 'order-completed-station'].forEach(event => {
-                socket.on(event, async (data) => {
-                    await Promise.all([loadOrders(), loadMateriais()]);
-                    render();
-                    if (event === 'order-station-changed' && data.toStation == estacaoId) {
-                        playSound(880, 200);
+                    if (Math.abs(currentX) > THRESHOLD) {
+                        fg.style.transform = `translateX(-${W}px)`;
+                        setTimeout(() => {
+                            row.classList.add('done');
+                            fg.style.transform = 'translateX(0)';
+                            done[key] = Date.now();
+                            localStorage.setItem(`done-${estacaoId}`, JSON.stringify(done));
+                            updateCount();
+                            playTick();
+                        }, 200);
+                    } else {
+                        fg.style.transform = 'translateX(0)';
                     }
-                });
+                    currentX = 0;
+                }
+
+                fg.addEventListener('touchstart', onStart, { passive: true });
+                fg.addEventListener('touchmove', onMove, { passive: true });
+                fg.addEventListener('touchend', onEnd);
+                fg.addEventListener('mousedown', onStart);
+                fg.addEventListener('mousemove', onMove);
+                fg.addEventListener('mouseup', onEnd);
+                fg.addEventListener('mouseleave', onEnd);
             });
         }
 
-        function updateStatus() {
-            const dot = document.querySelector('.status-dot');
-            if (dot) dot.classList.toggle('offline', !connected);
-        }
-
-        // ========== API ==========
-        async function advanceOrder(id) {
-            if (processing) return;
-            processing = true;
-
-            try {
-                const res = await fetch(`${API}/ordens/${id}/avancar`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ estacao_id: estacaoId })
-                });
-
-                if (res.ok) {
-                    showToast('Concluído!');
-                    playSuccess();
-                    setTimeout(async () => {
-                        await loadOrders();
-                        render();
-                        processing = false;
-                    }, 1500);
-                } else {
-                    const err = await res.json();
-                    showToast(err.error || 'Erro', true);
-                    if (swipeHandler) swipeHandler.reset();
-                    processing = false;
-                }
-            } catch (e) {
-                showToast('Erro de conexão', true);
-                if (swipeHandler) swipeHandler.reset();
-                processing = false;
-            }
-        }
-
-        // ========== SOUNDS ==========
-        function playSound(freq, dur) {
+        function playTick() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = freq;
-                gain.gain.value = 0.3;
-                osc.start();
-                setTimeout(() => osc.stop(), dur);
-            } catch (e) {}
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.frequency.value = 1200;
+                g.gain.value = 0.15;
+                o.start(); o.stop(ctx.currentTime + 0.08);
+            } catch(e) {}
         }
 
-        function playSuccess() {
-            playSound(523, 100);
-            setTimeout(() => playSound(659, 100), 100);
-            setTimeout(() => playSound(784, 150), 200);
-        }
-
-        // ========== TOAST ==========
-        function showToast(msg, error = false) {
-            const toast = document.getElementById('toast');
-            const msgEl = document.getElementById('toast-msg');
-            msgEl.textContent = msg;
-            toast.classList.toggle('error', error);
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-        }
-
-        // ========== LOAD ==========
+        // ========== DATA ==========
         async function loadStation() {
             try {
-                const res = await fetch(`${API}/estacoes/${estacaoId}`);
-                estacao = res.ok ? await res.json() : { nome: 'Estação', cor: '#0d6efd', icone: 'fa-cog' };
-                document.documentElement.style.setProperty('--accent', estacao.cor || '#0d6efd');
-            } catch (e) {
-                estacao = { nome: 'Estação', cor: '#0d6efd', icone: 'fa-cog' };
-            }
-        }
-
-        async function loadOrders() {
-            try {
-                const res = await fetch(`${API}/estacoes/${estacaoId}/ordens`);
-                ordens = res.ok ? await res.json() : [];
-            } catch (e) {
-                ordens = [];
-            }
+                const r = await fetch(`${API}/estacoes/${estacaoId}`);
+                if (r.ok) estacao = await r.json();
+            } catch(e) {}
+            estacao = estacao || { nome: 'Estacao', icone: 'fa-cog' };
+            document.getElementById('title').textContent = `Lista de Corte — ${estacao.nome}`;
         }
 
         async function loadMateriais() {
             try {
-                const res = await fetch(`${API}/estacoes/${estacaoId}/materiais`);
-                materiais = res.ok ? await res.json() : [];
-            } catch (e) {
+                const r = await fetch(`${API}/estacoes/${estacaoId}/materiais`);
+                materiais = r.ok ? await r.json() : [];
+            } catch(e) {
                 materiais = [];
             }
-        }
-
-        function formatDate(str) {
-            if (!str) return '-';
-            return new Date(str).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-        }
-
-        function daysUntil(str) {
-            if (!str) return null;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const d = new Date(str);
-            d.setHours(0, 0, 0, 0);
-            return Math.ceil((d - today) / 86400000);
         }
 
         // ========== RENDER ==========
@@ -828,153 +317,112 @@
         }
 
         function render() {
-            const app = document.getElementById('app');
-            const current = ordens.find(o => o.estado_estacao === 'em_progresso') || ordens[0];
-            const now = new Date();
+            const el = document.getElementById('content');
 
-            app.innerHTML = `
-                <header class="header">
-                    <div class="station-name">
-                        <i class="fas ${estacao.icone || 'fa-cog'}"></i>
-                        <span>${estacao.nome}</span>
-                    </div>
-                    <div class="clock" id="clock">${now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</div>
-                </header>
-
-                <main class="content">
-                    ${current ? renderOrder(current) : renderEmpty()}
-                    ${renderCutList()}
-                </main>
-
-                <footer class="status-bar">
-                    <div>
-                        <span class="status-dot ${connected ? '' : 'offline'}"></span>
-                        ${connected ? 'Online' : 'Offline'}
-                    </div>
-                    <div>ProduFlow</div>
-                </footer>
-            `;
-
-            if (current) {
-                const swipeEl = document.getElementById('swipe');
-                if (swipeEl) {
-                    swipeHandler = new SwipeHandler(swipeEl, () => advanceOrder(current.id));
+            // Flatten all cuts and clean old done entries
+            const allKeys = new Set();
+            for (const mat of materiais) {
+                for (const c of mat.cortes) {
+                    allKeys.add(`${mat.material}|${c.medida}|${c.produto}`);
                 }
             }
-        }
+            // Remove done entries that no longer exist
+            for (const k of Object.keys(done)) {
+                if (!allKeys.has(k)) delete done[k];
+            }
+            localStorage.setItem(`done-${estacaoId}`, JSON.stringify(done));
 
-        function renderOrder(o) {
-            const days = daysUntil(o.data_prevista);
-            const late = days !== null && days < 0;
-
-            return `
-                <div class="order-card has-order">
-                    <div class="order-header">
-                        <div>
-                            <div class="order-id">${o.numero}</div>
-                            <div class="order-product">${o.produto_nome}</div>
-                        </div>
-                        <div class="priority priority-${o.prioridade}">${PRIO[o.prioridade]}</div>
-                    </div>
-
-                    <div class="order-info">
-                        <div class="info-item">
-                            <div class="info-label">Qty</div>
-                            <div class="info-value">${o.quantidade}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Cliente</div>
-                            <div class="info-value" style="font-size: clamp(0.8rem, 2.5vw, 1rem);">${o.cliente_nome || o.cliente || '-'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Entrega</div>
-                            <div class="info-value ${late ? 'late' : ''}">${formatDate(o.data_prevista)}</div>
-                        </div>
-                    </div>
-
-                    ${o.notas ? `<div class="order-notes">${o.notas}</div>` : ''}
-
-                    <div class="swipe-area">
-                        <div class="swipe-slider" id="swipe">
-                            <div class="swipe-track"></div>
-                            <div class="swipe-handle"><i class="fas fa-chevron-right"></i></div>
-                            <div class="swipe-text">Deslizar para concluir <i class="fas fa-arrow-right"></i></div>
-                            <div class="swipe-success"><i class="fas fa-check"></i> Concluído</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderEmpty() {
-            return `
-                <div class="order-card">
-                    <div class="empty">
-                        <i class="fas fa-check-circle"></i>
-                        <h2>Sem tarefas</h2>
-                        <p>Não há ordens pendentes para esta estação.</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderCutList() {
             if (!materiais || materiais.length === 0) {
-                return `
-                    <div class="cut-list">
-                        <div class="cut-list-header">Lista de Corte</div>
-                        <div class="cut-empty">Sem materiais</div>
+                el.innerHTML = `
+                    <div class="empty">
+                        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        Sem cortes pendentes
                     </div>
                 `;
+                updateCount();
+                return;
             }
 
-            let rows = '';
+            let html = '';
             for (const mat of materiais) {
-                rows += `<div class="cut-material">`;
-                rows += `<div class="cut-material-name">
+                html += `<div class="mat-group">`;
+                html += `<div class="mat-header">
                     <span>${mat.material}</span>
-                    <span>${fmt(mat.total)} ${mat.unidade}</span>
+                    <span class="mat-total">${fmt(mat.total)} ${mat.unidade}</span>
                 </div>`;
 
                 for (const c of mat.cortes) {
-                    rows += `
-                        <div class="cut-row">
-                            <span class="cut-check"></span>
-                            <span class="cut-qty">${c.pecas}x</span>
-                            <span class="cut-dim">${fmt(c.medida)} ${mat.unidade}</span>
-                            <span class="cut-for">${c.produto}</span>
+                    const key = `${mat.material}|${c.medida}|${c.produto}`;
+                    const isDone = !!done[key];
+
+                    html += `
+                        <div class="cut-row ${isDone ? 'done' : ''}" data-key="${key}">
+                            <div class="cut-bg">FEITO ✓</div>
+                            <div class="cut-fg">
+                                <span class="cut-qty">${c.pecas}x</span>
+                                <span class="cut-sep">—</span>
+                                <span class="cut-dim">${fmt(c.medida)} ${mat.unidade}</span>
+                                <span class="cut-for">${c.produto}${c.notas ? '<br><span class="cut-notes">' + c.notas + '</span>' : ''}</span>
+                            </div>
                         </div>
                     `;
                 }
 
-                rows += `</div>`;
+                html += `</div>`;
             }
 
-            return `
-                <div class="cut-list">
-                    <div class="cut-list-header">Lista de Corte</div>
-                    ${rows}
-                </div>
-            `;
+            el.innerHTML = html;
+            initSwipes();
+            updateCount();
+        }
+
+        function updateCount() {
+            const total = materiais.reduce((s, m) => s + m.cortes.length, 0);
+            const feitos = Object.keys(done).length;
+            document.getElementById('footer-count').textContent =
+                total > 0 ? `${feitos}/${total} concluidos` : '';
+        }
+
+        // ========== SOCKET ==========
+        function initSocket() {
+            try {
+                socket = io();
+                socket.on('connect', () => {
+                    connected = true;
+                    socket.emit('join-station', estacaoId);
+                    document.getElementById('status-dot').classList.remove('offline');
+                });
+                socket.on('disconnect', () => {
+                    connected = false;
+                    document.getElementById('status-dot').classList.add('offline');
+                });
+                ['order-started', 'order-station-changed', 'order-completed', 'order-completed-station'].forEach(evt => {
+                    socket.on(evt, async () => {
+                        await loadMateriais();
+                        render();
+                    });
+                });
+            } catch(e) {}
         }
 
         // ========== CLOCK ==========
         function updateClock() {
-            const el = document.getElementById('clock');
-            if (el) el.textContent = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('clock').textContent =
+                new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
         }
 
         // ========== INIT ==========
         async function init() {
+            updateClock();
             await loadStation();
-            await Promise.all([loadOrders(), loadMateriais()]);
+            await loadMateriais();
             render();
             initSocket();
 
             setInterval(updateClock, 1000);
             setInterval(async () => {
-                if (!connected && !processing) {
-                    await Promise.all([loadOrders(), loadMateriais()]);
+                if (!connected) {
+                    await loadMateriais();
                     render();
                 }
             }, 30000);
