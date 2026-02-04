@@ -822,6 +822,7 @@
 
         // ========== RENDER ==========
         function fmt(n) {
+            n = parseFloat(n) || 0;
             if (n === Math.floor(n)) return n.toString();
             return n.toFixed(2).replace('.', ',');
         }
