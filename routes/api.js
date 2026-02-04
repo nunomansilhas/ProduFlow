@@ -28,6 +28,7 @@ const dashboardController = require('../controllers/dashboardController');
 router.get('/display/estacoes', estacoesController.listar);
 router.get('/display/estacoes/:id', estacoesController.obter);
 router.get('/display/estacoes/:id/ordens', estacoesController.ordensNaEstacao);
+router.get('/display/estacoes/:id/materiais', ordensController.materiaisEstacao);
 router.post('/display/ordens/:id/avancar', ordensController.avancarEstacao);
 
 // ============================================

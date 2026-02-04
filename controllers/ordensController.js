@@ -756,56 +756,66 @@ exports.criarGrupo = async (req, res) => {
     }
 };
 
-// Materiais agregados por estação (para batching)
+// Lista de corte / materiais agregados por estação
 exports.materiaisEstacao = async (req, res) => {
     try {
-        const { estacao_id } = req.params;
+        const estacao_id = req.params.estacao_id || req.params.id;
 
-        // Buscar todas as ordens na fila desta estação, agrupadas por produto
+        // Buscar materiais do BOM de todas as ordens na fila desta estação
         const [rows] = await db.query(`
             SELECT
-                o.produto_id,
+                mp.id AS material_id,
+                mp.nome AS material_nome,
+                mp.codigo AS material_codigo,
+                mp.unidade,
+                bl.quantidade AS medida_por_peca,
+                bl.notas AS bom_notas,
                 COALESCE(p.nome, 'Biscate') AS produto_nome,
-                p.sku,
+                SUM(o.quantidade) AS total_pecas,
+                SUM(o.quantidade * bl.quantidade) AS total_material,
                 COUNT(DISTINCT o.id) AS num_ordens,
-                SUM(o.quantidade) AS quantidade_total,
-                GROUP_CONCAT(DISTINCT o.numero ORDER BY o.prioridade DESC) AS ordens_numeros,
-                GROUP_CONCAT(DISTINCT o.id) AS ordens_ids,
-                MAX(o.prioridade) AS max_prioridade,
-                MIN(o.data_prevista) AS prazo_mais_urgente
+                COALESCE(s.quantidade, 0) AS stock_atual
             FROM ordem_estacoes oe
             JOIN ordens o ON oe.ordem_id = o.id
             LEFT JOIN produtos p ON o.produto_id = p.id
+            LEFT JOIN bom_linhas bl ON bl.produto_id = o.produto_id AND bl.tipo = 'material'
+            LEFT JOIN materias_primas mp ON bl.material_id = mp.id
+            LEFT JOIN stock s ON s.materia_id = mp.id
             WHERE oe.estacao_id = ?
               AND oe.estado IN ('pendente', 'em_progresso')
               AND o.estado != 'concluida'
-            GROUP BY o.produto_id, p.nome, p.sku
-            ORDER BY max_prioridade DESC, prazo_mais_urgente
+              AND mp.id IS NOT NULL
+            GROUP BY mp.id, mp.nome, mp.codigo, mp.unidade,
+                     bl.quantidade, bl.notas, p.nome
+            ORDER BY mp.nome, p.nome
         `, [estacao_id]);
 
-        // Para cada produto, calcular materiais agregados
-        const resultado = [];
+        // Agrupar por material
+        const materiais = {};
         for (const row of rows) {
-            let materiais = [];
-            if (row.produto_id) {
-                materiais = await bomCalculator.calcularMateriaisBOM(row.produto_id, row.quantidade_total);
+            if (!materiais[row.material_id]) {
+                materiais[row.material_id] = {
+                    material: row.material_nome,
+                    codigo: row.material_codigo,
+                    unidade: row.unidade,
+                    stock: row.stock_atual,
+                    cortes: [],
+                    total: 0
+                };
             }
 
-            resultado.push({
-                produto_id: row.produto_id,
-                produto_nome: row.produto_nome,
-                sku: row.sku,
-                num_ordens: row.num_ordens,
-                quantidade_total: row.quantidade_total,
-                ordens: row.ordens_numeros ? row.ordens_numeros.split(',') : [],
-                ordens_ids: row.ordens_ids ? row.ordens_ids.split(',').map(Number) : [],
-                max_prioridade: row.max_prioridade,
-                prazo_mais_urgente: row.prazo_mais_urgente,
-                materiais: materiais
+            materiais[row.material_id].cortes.push({
+                produto: row.produto_nome,
+                medida: row.medida_por_peca,
+                pecas: row.total_pecas,
+                subtotal: row.total_material,
+                notas: row.bom_notas
             });
+
+            materiais[row.material_id].total += row.total_material;
         }
 
-        res.json(resultado);
+        res.json(Object.values(materiais));
     } catch (error) {
         console.error('Erro ao obter materiais da estação:', error);
         res.status(500).json({ error: 'Erro ao obter materiais' });
